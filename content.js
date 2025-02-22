@@ -1,5 +1,5 @@
 (async () => {
-  const ENABLE_HIGHLIGHT = true;
+  const ENABLE_HIGHLIGHT = false;
 
   // Retrieve debug flag from storage; default to true.
   async function getDebugFlag() {
@@ -162,6 +162,8 @@
       ta.id = 'muteBlockInfoTextarea';
       ta.style.width = '100%';
       ta.style.boxSizing = 'border-box';
+      ta.style.borderRadius = '3px';
+      ta.style.resize = 'none';
       ta.rows = 1;
       ta.placeholder = "Your mute/block history for " + username;
       // Save content on every input event.
@@ -218,8 +220,8 @@
     // Remove the first "·" (separator)
     content = content.replace("·", "");
     let lines = content.split("\n");
-    // Remove trailing lines that contain only numbers.
-    while (lines.length > 0 && /^\s*\d+[KM]?\s*$/.test(lines[lines.length - 1])) {
+    // Remove trailing lines that contain only numbers (possibly with decimals or K/M suffix).
+    while (lines.length > 0 && /^\s*\d+([.]\d+)?[KM]?\s*$/.test(lines[lines.length - 1])) {
       lines.pop();
     }
     return lines.join("\n").trim();
@@ -281,7 +283,13 @@
           if (container) {
             let linkInContainer = container.querySelector('a[href*="/status/"]');
             tweetUrl = linkInContainer ? linkInContainer.href : href;
-            tweetText = cleanTweetContent(container.innerText);
+            // Try to use data-testid="tweetText" if available.
+            let tweetTextElem = container.querySelector('[data-testid="tweetText"]');
+            if (tweetTextElem) {
+              tweetText = tweetTextElem.textContent;
+            } else {
+              tweetText = cleanTweetContent(container.innerText);
+            }
           } else {
             tweetUrl = href;
             tweetText = "";
