@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Twitter Mute/Block Tracker Settings</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    textarea { width: 100%; height: 200px; }
+    label { display: block; margin-top: 10px; }
+    button { margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Twitter Mute/Block Tracker Settings</h1>
+
+  <label>
+    <input type="checkbox" id="debugToggle">
+    Enable Debug Logging
+  </label>
+
+  <h2>Backup / Restore Data</h2>
+  <textarea id="backupArea" placeholder="Your backup data will appear here"></textarea>
+  <br>
+  <button id="exportButton">Export Data</button>
+  <button id="importButton">Import Data</button>
+  <input type="file" id="importFile" style="display:none">
+
+  <script>
+    // Load settings from chrome.storage.sync
+    const debugToggle = document.getElementById("debugToggle");
+    const backupArea = document.getElementById("backupArea");
+    const exportButton = document.getElementById("exportButton");
+    const importButton = document.getElementById("importButton");
+    const importFile = document.getElementById("importFile");
+
+    chrome.storage.sync.get({ DEBUG_LOG: true }, function(result) {
+      debugToggle.checked = result.DEBUG_LOG;
+    });
+
+    debugToggle.addEventListener("change", function() {
+      chrome.storage.sync.set({ DEBUG_LOG: debugToggle.checked });
+    });
+
+    exportButton.addEventListener("click", function() {
+      chrome.storage.sync.get(null, function(items) {
+        let data = {};
+        for (let key in items) {
+          if (key.startsWith("muteBlockEvents-") || key === "DEBUG_LOG") {
+            data[key] = items[key];
+          }
+        }
+        backupArea.value = JSON.stringify(data, null, 2);
+      });
+    });
+
+    importButton.addEventListener("click", function() {
+      importFile.click();
+    });
+
+    importFile.addEventListener("change", function() {
+      const file = importFile.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const data = JSON.parse(evt.target.result);
+          chrome.storage.sync.set(data, function() {
+            alert("Import successful!");
+          });
+        } catch (e) {
+          alert("Import failed: invalid file.");
+        }
+      };
+      reader.readAsText(file);
+    });
+  </script>
+</body>
+</html>
