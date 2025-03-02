@@ -355,8 +355,6 @@
     addTextareaToProfile();
   }
 
-  // --- Hover Card Text Field for User Hover ---
-  // When you hover over a username, a hover card appears. We capture that and insert a similar text field under its "Profile Summary" button.
   function addTextFieldToHoverCard(hoverCard) {
     // Check if already added.
     if (hoverCard.querySelector('.hovercard-textfield')) {
@@ -399,14 +397,14 @@
     });
     container.appendChild(ta);
 
-    // Look for the "Profile Summary" button within the hover card.
-    // We assume that the "Profile Summary" button has aria-label "Profile Summary".
-    let summaryButton = hoverCard.querySelector('button[aria-label="Profile Summary"]');
-    if (summaryButton) {
-      summaryButton.parentElement.appendChild(container);
-      debugLog("[DEBUG] Hover card text field inserted under Profile Summary button.");
+    // Instead of attaching to the Profile Summary button's parent,
+    // try to attach to an inner container in the hover card.
+    let innerContainer = hoverCard.querySelector('div'); // adjust as needed
+    if (innerContainer) {
+      innerContainer.appendChild(container);
+      debugLog("[DEBUG] Hover card text field inserted into inner container.");
     } else {
-      // Fallback: append to hover card.
+      // Fallback: append at the end of the hover card.
       hoverCard.appendChild(container);
       debugLog("[DEBUG] Hover card text field inserted at end of hover card.");
     }
