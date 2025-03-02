@@ -165,7 +165,7 @@
       ta.style.borderRadius = '3px';
       ta.style.resize = 'none';
       ta.rows = 1;
-      ta.placeholder = "Your mute/block history for " + username;
+      ta.placeholder = "Your notes for " + username + " (visible only to you)";
       // Save content on every input event.
       ta.addEventListener('input', function() {
         debugLog("[DEBUG] Textarea input event triggered.");
