@@ -1,11 +1,14 @@
 (async () => {
-  const ENABLE_HIGHLIGHT = true;
-  const HOVERCARD_TEXTAREA_HEIGHT = 80;
-  const DEBUG_LOG = true;
+  const ENABLE_HIGHLIGHT = false;
+  const HOVERCARD_TEXTAREA_HEIGHT = 50;
+  const DEBUG_LOG = false;
 
-  function debugLog(...args) {
-    if (DEBUG_LOG) console.log("[X Note addon]:", ...args);
-  }
+  const debugLog = (
+    DEBUG_LOG ?
+      function debugLog(...args) {
+        if (DEBUG_LOG) console.log("[X Note addon]:", ...args);
+      } : function () {
+      });
 
   debugLog("Content script started.");
 
@@ -135,7 +138,7 @@
     let newHeight = textarea.scrollHeight;
     let contentLines = textarea.value.split("\n").length;
     let lineHeight = parseFloat(window.getComputedStyle(textarea).lineHeight) || 20;
-    if (contentLines > 1) newHeight += lineHeight;
+    if (contentLines > 1) newHeight += 5;
     if (newHeight < 20) newHeight = 20;
     textarea.style.height = newHeight + "px";
   }
@@ -169,64 +172,73 @@
       debugLog("profile anchor element not found. Aborting.");
       return;
     }
-    if (!document.getElementById('muteBlockInfoContainer')) {
-      const pathParts = window.location.pathname.split('/');
-      if (pathParts.length < 2 || !pathParts[1]) {
-        debugLog("Unable to determine username from URL. Aborting.");
+
+    // actually contains human-readable name too
+    const userNameContainerElement = document.querySelector('[data-testid="UserName"]');
+    const userNameElement = [...userNameContainerElement.querySelectorAll('span')].pop();
+    const username = userNameElement.textContent.trim();
+    debugLog("Detected username (profile):", username);
+
+    // Check if an existing container exists.
+    let existingContainer = document.getElementById('muteBlockInfoContainer');
+    if (existingContainer) {
+      // If the container's data-username doesn't match, remove it.
+      if (existingContainer.getAttribute("data-username") !== username) {
+        debugLog("Existing container belongs to a different user. Removing.");
+        existingContainer.remove();
+        existingContainer = null;
+      } else {
+        debugLog("Profile textarea container already exists for", username);
         return;
       }
-      const username = "@" + pathParts[1];
-      debugLog("Detected username (profile):", username);
-
-      const container = document.createElement('div');
-      container.id = 'muteBlockInfoContainer';
-      container.style.marginTop = "10px";
-
-      const ta = document.createElement('textarea');
-      ta.id = 'muteBlockInfoTextarea';
-      ta.style.width = '100%';
-      ta.style.boxSizing = 'border-box';
-      ta.style.borderRadius = '3px';
-      ta.style.resize = 'none';
-      ta.rows = 1;
-      ta.placeholder = "Your notes for " + username + " (visible only to you)";
-      ta.addEventListener('input', function() {
-        debugLog("Profile textarea input event triggered.");
-        autoResizeTextarea(ta);
-        saveTextareaContents(username, ta.value);
-        if (debounceTimers[username]) {
-          clearTimeout(debounceTimers[username]);
-        }
-        debounceTimers[username] = setTimeout(() => {
-          syncTextareas(username, ta.value);
-          delete debounceTimers[username];
-        }, 300);
-      });
-      ta.addEventListener('focus', function() {
-        debugLog("Profile textarea focus event triggered. Expanding fully.");
-        autoResizeTextarea(ta);
-      });
-      loadEvents(username).then(events => {
-        ta.value = events.join('\n\n');
-        autoResizeTextarea(ta);
-      });
-      container.appendChild(ta);
-      debugLog("Profile textarea created and populated.");
-      registerTextarea(username, ta);
-      profileAnchorElement.parentElement.insertBefore(container, profileAnchorElement.nextSibling);
-      debugLog("Profile textarea container added to the profile page.");
-    } else {
-      debugLog("Profile textarea container already exists.");
     }
+
+    const container = document.createElement('div');
+    container.id = 'muteBlockInfoContainer';
+    container.setAttribute("data-username", username);
+    container.style.marginTop = "10px";
+
+    const ta = document.createElement('textarea');
+    ta.id = 'muteBlockInfoTextarea';
+    ta.style.width = '100%';
+    ta.style.boxSizing = 'border-box';
+    ta.style.borderRadius = '10px';
+    ta.style.padding = '3px';
+    ta.style.resize = 'none';
+    ta.rows = 1;
+    ta.placeholder = "Your notes for " + username + " (visible only to you)";
+    // Save content on every input event.
+    ta.addEventListener('input', function() {
+      debugLog("Profile textarea input event triggered.");
+      autoResizeTextarea(ta);
+      saveTextareaContents(username, ta.value);
+      if (debounceTimers[username]) {
+        clearTimeout(debounceTimers[username]);
+      }
+      debounceTimers[username] = setTimeout(() => {
+        syncTextareas(username, ta.value);
+        delete debounceTimers[username];
+      }, 300);
+    });
+    ta.addEventListener('focus', function() {
+      debugLog("Profile textarea focus event triggered. Expanding fully.");
+      autoResizeTextarea(ta);
+    });
+    loadEvents(username).then(events => {
+      ta.value = events.join('\n\n');
+      autoResizeTextarea(ta);
+    });
+    container.appendChild(ta);
+    debugLog("Profile textarea created and populated.");
+    registerTextarea(username, ta);
+    profileAnchorElement.parentElement.insertBefore(container, profileAnchorElement.nextSibling);
+    debugLog("Profile textarea container added to the profile page.");
   }
 
   // Observe for profile page content dynamically loaded.
   const profileObserver = new MutationObserver((mutations) => {
     if (/^\/[^\/]+\/?$/.test(window.location.pathname)) {
-      if (!document.getElementById('muteBlockInfoContainer')) {
-        debugLog("Profile detected but textarea container missing. Re-adding...");
-        addTextareaToProfile();
-      }
+      addTextareaToProfile();
     }
   });
   profileObserver.observe(document.body, { childList: true, subtree: true });
@@ -246,8 +258,8 @@
 
   // --- Clean tweet content ---
   function cleanTweetContent(content) {
-    // Remove the first "·" (separator)
     debugLog("Cleaning tweet content.");
+    // Remove the first "·" (separator)
     content = content.replace("·", "");
     let lines = content.split("\n");
     // Remove trailing lines that contain only numbers (optionally decimals or K/M suffix).
@@ -318,7 +330,7 @@
             if (tweetTextElem) {
               tweetText = cleanTweetContent(tweetTextElem.textContent);
             } else {
-              debugLog('WARNING: tweetTextElem detection failed');
+              debugLog('WARNING: tweetTextElem not found, falling back to container innerText.');
               tweetText = cleanTweetContent(container.innerText);
             }
           } else {
@@ -341,7 +353,7 @@
       await saveEvent(username, logEntry);
       debugLog("Mute/Block event saved for", username, logEntry);
 
-      // If we are on that user's profile, update all tracked textareas instantly.
+      // If on that user's profile, update all tracked textareas instantly.
       const pathParts = window.location.pathname.split('/');
       if (pathParts.length >= 2 && ("@" + pathParts[1]) === username) {
         debugLog("Updating profile textarea for current profile", username);
@@ -480,6 +492,7 @@
       });
     });
   });
+
   hoverCardObserver.observe(document.body, { childList: true, subtree: true });
   debugLog("Hover card observer set up.");
 })();
