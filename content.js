@@ -1,5 +1,5 @@
 (async () => {
-  const ENABLE_HIGHLIGHT = false;
+  const ENABLE_HIGHLIGHT = true;
 
   // Retrieve debug flag from storage; default to true.
   async function getDebugFlag() {
@@ -121,23 +121,23 @@
     debugLog("[DEBUG] updateTextareaForProfile called for", username);
     const ta = document.getElementById('muteBlockInfoTextarea');
     if (!ta) {
-      debugLog("[DEBUG] Textarea not found, aborting update.");
+      debugLog("[DEBUG] Profile textarea not found, aborting update.");
       return;
     }
     const events = await loadEvents(username);
     ta.value = events.join('\n\n');
     autoResizeTextarea(ta);
-    debugLog("[DEBUG] Textarea updated for", username);
+    debugLog("[DEBUG] Profile textarea updated for", username);
   }
 
   async function saveTextareaContents(username, value) {
     debugLog("[DEBUG] saveTextareaContents called for", username);
     const events = value.split('\n\n').filter(s => s.trim() !== '');
     await setStoredData('muteBlockEvents-' + username, events);
-    debugLog("[DEBUG] Textarea contents saved for", username, events);
+    debugLog("[DEBUG] Profile textarea contents saved for", username, events);
   }
 
-  // addTextareaToProfile() now uses a MutationObserver to re-add it whenever a profile is loaded dynamically
+  // Insert the profile textarea under the user description.
   function addTextareaToProfile() {
     debugLog("[DEBUG] addTextareaToProfile called.");
     const userDesc = document.querySelector('[data-testid="UserDescription"]');
@@ -152,7 +152,7 @@
         return;
       }
       const username = "@" + pathParts[1];
-      debugLog("[DEBUG] Detected username:", username);
+      debugLog("[DEBUG] Detected username (profile):", username);
 
       const container = document.createElement('div');
       container.id = 'muteBlockInfoContainer';
@@ -168,12 +168,12 @@
       ta.placeholder = "Your notes for " + username + " (visible only to you)";
       // Save content on every input event.
       ta.addEventListener('input', function() {
-        debugLog("[DEBUG] Textarea input event triggered.");
+        debugLog("[DEBUG] Profile textarea input event triggered.");
         autoResizeTextarea(ta);
         saveTextareaContents(username, ta.value);
       });
       ta.addEventListener('focus', function() {
-        debugLog("[DEBUG] Textarea focus event triggered. Expanding fully.");
+        debugLog("[DEBUG] Profile textarea focus event triggered. Expanding fully.");
         autoResizeTextarea(ta);
       });
       loadEvents(username).then(events => {
@@ -181,12 +181,12 @@
         autoResizeTextarea(ta);
       });
       container.appendChild(ta);
-      debugLog("[DEBUG] Textarea created and populated.");
+      debugLog("[DEBUG] Profile textarea created and populated.");
 
       userDesc.parentElement.insertBefore(container, userDesc.nextSibling);
-      debugLog("[DEBUG] Mute/Block info container added to the profile page.");
+      debugLog("[DEBUG] Profile textarea container added to the profile page.");
     } else {
-      debugLog("[DEBUG] Mute/Block info container already exists.");
+      debugLog("[DEBUG] Profile textarea container already exists.");
     }
   }
 
@@ -220,7 +220,7 @@
     // Remove the first "·" (separator)
     content = content.replace("·", "");
     let lines = content.split("\n");
-    // Remove trailing lines that contain only numbers (possibly with decimals or K/M suffix).
+    // Remove trailing lines that contain only numbers (optionally decimals or K/M suffix).
     while (lines.length > 0 && /^\s*\d+([.]\d+)?[KM]?\s*$/.test(lines[lines.length - 1])) {
       lines.pop();
     }
@@ -283,10 +283,10 @@
           if (container) {
             let linkInContainer = container.querySelector('a[href*="/status/"]');
             tweetUrl = linkInContainer ? linkInContainer.href : href;
-            // Try to use data-testid="tweetText" if available.
+            // Try to use the element with data-testid="tweetText" if available.
             let tweetTextElem = container.querySelector('[data-testid="tweetText"]');
             if (tweetTextElem) {
-              tweetText = tweetTextElem.textContent;
+              tweetText = cleanTweetContent(tweetTextElem.textContent);
             } else {
               tweetText = cleanTweetContent(container.innerText);
             }
@@ -318,7 +318,7 @@
       // If we are on that user's profile, update the textarea instantly.
       const pathParts = window.location.pathname.split('/');
       if (pathParts.length >= 2 && ("@" + pathParts[1]) === username) {
-        debugLog("[DEBUG] Updating textarea for current profile", username);
+        debugLog("[DEBUG] Updating profile textarea for current profile", username);
         await updateTextareaForProfile(username);
       }
     });
@@ -349,9 +349,92 @@
   buttonObserver.observe(document.body, { childList: true, subtree: true });
   debugLog("[DEBUG] Button observer set up.");
 
-  // On initial load, if on a profile page, insert the textarea.
+  // On initial load, if on a profile page, insert the profile textarea.
   if (/^\/[^\/]+\/?$/.test(window.location.pathname)) {
     debugLog("[DEBUG] On initial load: profile page detected.");
     addTextareaToProfile();
   }
+
+  // --- Hover Card Text Field for User Hover ---
+  // When you hover over a username, a hover card appears. We capture that and insert a similar text field under its "Profile Summary" button.
+  function addTextFieldToHoverCard(hoverCard) {
+    // Check if already added.
+    if (hoverCard.querySelector('.hovercard-textfield')) {
+      debugLog("[DEBUG] Hover card text field already exists.");
+      return;
+    }
+    // Try to extract the username from a link within the hover card.
+    let usernameAnchor = hoverCard.querySelector('a[href^="/"]');
+    if (!usernameAnchor) {
+      debugLog("[DEBUG] No username anchor found in hover card.");
+      return;
+    }
+    let usernameHref = usernameAnchor.getAttribute('href'); // e.g. "/jtriley2p"
+    let username = "@" + usernameHref.slice(1);
+    debugLog("[DEBUG] Detected username (hover card):", username);
+
+    // Create container for the text field.
+    const container = document.createElement('div');
+    container.className = 'hovercard-textfield';
+    container.style.marginTop = "5px";
+
+    // Create a textarea with similar behavior.
+    const ta = document.createElement('textarea');
+    ta.style.width = '100%';
+    ta.style.boxSizing = 'border-box';
+    ta.style.borderRadius = '3px';
+    ta.style.resize = 'none';
+    ta.rows = 1;
+    ta.placeholder = "Your mute/block history for " + username;
+    ta.addEventListener('input', function() {
+      autoResizeTextarea(ta);
+      saveTextareaContents(username, ta.value);
+    });
+    ta.addEventListener('focus', function() {
+      autoResizeTextarea(ta);
+    });
+    loadEvents(username).then(events => {
+      ta.value = events.join('\n\n');
+      autoResizeTextarea(ta);
+    });
+    container.appendChild(ta);
+
+    // Look for the "Profile Summary" button within the hover card.
+    // We assume that the "Profile Summary" button has aria-label "Profile Summary".
+    let summaryButton = hoverCard.querySelector('button[aria-label="Profile Summary"]');
+    if (summaryButton) {
+      summaryButton.parentElement.appendChild(container);
+      debugLog("[DEBUG] Hover card text field inserted under Profile Summary button.");
+    } else {
+      // Fallback: append to hover card.
+      hoverCard.appendChild(container);
+      debugLog("[DEBUG] Hover card text field inserted at end of hover card.");
+    }
+  }
+
+  // Observe dynamic hover cards.
+  const hoverCardObserver = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      mutation.addedNodes.forEach((node) => {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          // Look for a hover card container.
+          if (node.hasAttribute("data-testid") && node.getAttribute("data-testid") === "HoverCard") {
+            debugLog("[DEBUG] HoverCard detected:", node);
+            addTextFieldToHoverCard(node);
+          } else {
+            // Also check descendants.
+            let hoverCards = node.querySelectorAll && node.querySelectorAll('[data-testid="HoverCard"]');
+            if (hoverCards && hoverCards.length > 0) {
+              hoverCards.forEach((hc) => {
+                debugLog("[DEBUG] HoverCard detected in subtree:", hc);
+                addTextFieldToHoverCard(hc);
+              });
+            }
+          }
+        }
+      });
+    });
+  });
+  hoverCardObserver.observe(document.body, { childList: true, subtree: true });
+  debugLog("[DEBUG] Hover card observer set up.");
 })();
