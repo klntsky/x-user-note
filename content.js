@@ -22,6 +22,44 @@
 
   debugLog("[DEBUG] Content script started.");
 
+  // --- Global tracking for textareas ---
+  const trackedTextareas = new Map(); // Map of username -> array of textarea elements
+  const debounceTimers = {}; // Map of username -> timer ID
+
+  function registerTextarea(username, ta) {
+    if (!trackedTextareas.has(username)) {
+      trackedTextareas.set(username, []);
+    }
+    trackedTextareas.get(username).push(ta);
+  }
+
+  function unregisterTextarea(username, ta) {
+    if (!trackedTextareas.has(username)) return;
+    const arr = trackedTextareas.get(username);
+    const index = arr.indexOf(ta);
+    if (index !== -1) {
+      arr.splice(index, 1);
+    }
+    if (arr.length === 0) {
+      trackedTextareas.delete(username);
+    }
+  }
+
+  function syncTextareas(username, newValue) {
+    debugLog("[DEBUG] Syncing textareas for", username, newValue);
+    if (!trackedTextareas.has(username)) return;
+    const arr = trackedTextareas.get(username);
+    // Remove any textarea that is no longer in the document.
+    const toUpdate = arr.filter(ta => document.contains(ta));
+    trackedTextareas.set(username, toUpdate);
+    toUpdate.forEach(ta => {
+      if (ta.value !== newValue) {
+        ta.value = newValue;
+        autoResizeTextarea(ta);
+      }
+    });
+  }
+
   // --- Storage helper wrappers using chrome.storage.sync ---
   async function getStoredData(key, defaultValue) {
     return new Promise((resolve, reject) => {
@@ -166,11 +204,18 @@
       ta.style.resize = 'none';
       ta.rows = 1;
       ta.placeholder = "Your notes for " + username + " (visible only to you)";
-      // Save content on every input event.
+      // Save content on every input event with debouncing.
       ta.addEventListener('input', function() {
         debugLog("[DEBUG] Profile textarea input event triggered.");
         autoResizeTextarea(ta);
         saveTextareaContents(username, ta.value);
+        if (debounceTimers[username]) {
+          clearTimeout(debounceTimers[username]);
+        }
+        debounceTimers[username] = setTimeout(() => {
+          syncTextareas(username, ta.value);
+          delete debounceTimers[username];
+        }, 300);
       });
       ta.addEventListener('focus', function() {
         debugLog("[DEBUG] Profile textarea focus event triggered. Expanding fully.");
@@ -182,6 +227,8 @@
       });
       container.appendChild(ta);
       debugLog("[DEBUG] Profile textarea created and populated.");
+      // Register this textarea.
+      registerTextarea(username, ta);
 
       userDesc.parentElement.insertBefore(container, userDesc.nextSibling);
       debugLog("[DEBUG] Profile textarea container added to the profile page.");
@@ -315,11 +362,12 @@
       await saveEvent(username, logEntry);
       debugLog("[DEBUG] Mute/Block event saved for", username, logEntry);
 
-      // If we are on that user's profile, update the textarea instantly.
+      // If we are on that user's profile, update all tracked textareas instantly.
       const pathParts = window.location.pathname.split('/');
       if (pathParts.length >= 2 && ("@" + pathParts[1]) === username) {
         debugLog("[DEBUG] Updating profile textarea for current profile", username);
         await updateTextareaForProfile(username);
+        syncTextareas(username, document.getElementById('muteBlockInfoTextarea').value);
       }
     });
   }
@@ -355,6 +403,7 @@
     addTextareaToProfile();
   }
 
+  // --- Hover Card Text Field for User Hover ---
   function addTextFieldToHoverCard(hoverCard) {
     // Check if already added.
     if (hoverCard.querySelector('.hovercard-textfield')) {
@@ -387,6 +436,13 @@
     ta.addEventListener('input', function() {
       autoResizeTextarea(ta);
       saveTextareaContents(username, ta.value);
+      if (debounceTimers[username]) {
+        clearTimeout(debounceTimers[username]);
+      }
+      debounceTimers[username] = setTimeout(() => {
+        syncTextareas(username, ta.value);
+        delete debounceTimers[username];
+      }, 300);
     });
     ta.addEventListener('focus', function() {
       autoResizeTextarea(ta);
@@ -396,6 +452,8 @@
       autoResizeTextarea(ta);
     });
     container.appendChild(ta);
+    // Register this hover textarea.
+    registerTextarea(username, ta);
 
     // Instead of attaching to the Profile Summary button's parent,
     // try to attach to an inner container in the hover card.
