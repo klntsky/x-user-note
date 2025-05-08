@@ -5,7 +5,7 @@
   "icons": {
     "128": "img/128.png"
   },
-  "description": "Keep track of your mute/block actions on X by saving original tweet link as a note attached to a user profile. Add private notes to every profile",
+  "description": "Add private notes to X user profiles. Track why you muted/blocked someone.",
   "permissions": ["storage"],
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvdAsaB2vMXUrvezOz+g78VTUXagfQIP0Bzv64rUOetk/KVXbSdUUh6HNSt3kvjaiPzQj679bv7m4swe6Q42cGibpRwdmC0p+gqwejTCyfGDaFCmG+t2dCCJeKYPe65T5bd9VA7Wj160eeR/nj3YPua70memfWoQH8LEDQlQ0KUv4MVYOXyo1wwV3JkzaKuqVamjV84ZBJImfM+Ve4qi4MYBC2IQAkk6v2kZAY0ukZgeOr93eABMTZyvRvsi/AB/ndIxWSMUTvJYTBavF6uSJu+y9S+a7vFBPnNsDpGUneDP/DB8DEYFnK56JKRuwHuV3PPClTN0ep3xF5kcMj8xp5wIDAQAB",
   "host_permissions": [
