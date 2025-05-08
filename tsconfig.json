@@ -1,25 +1,24 @@
 {
   "compilerOptions": {
     "target": "es2020",                       // Specify ECMAScript target version
-    "module": "commonjs",                  // Specify module code generation
-    "strict": true,                        // Enable all strict type-checking options
-    "esModuleInterop": true,               // Enables emit interoperability between CommonJS and ES Modules
-    "skipLibCheck": true,                  // Skip type checking of declaration files
+    "module": "commonjs",                     // Specify module code generation
+    "strict": true,                           // Enable all strict type-checking options
+    "esModuleInterop": true,                  // Enables emit interoperability between CommonJS and ES Modules
+    "skipLibCheck": true,                     // Skip type checking of declaration files
     "forceConsistentCasingInFileNames": true, // Disallow inconsistently-cased references to the same file.
-    "outDir": "./dist",                    // Redirect output structure to the directory
-    "rootDir": "./",                       // Specify the root directory of input files
-    "noImplicitAny": true,                 // Raise error on expressions and declarations with an implied 'any' type
-    "sourceMap": true,                     // Generates corresponding '.map' file
-    // "allowJs": true,                    // Allow javascript files to be compiled (useful for gradual migration)
-    // "checkJs": true,                    // Report errors in .js files too
-    "typeRoots": ["./node_modules/@types"] // Specify the location of type definitions
+    "outDir": "./dist",                       // Redirect output structure to the directory
+    "rootDir": "./src",                       // Specify the root directory of input files
+    "noImplicitAny": true,                    // Raise error on expressions and declarations with an implied 'any' type
+    "sourceMap": true,                        // Generates corresponding '.map' file
+    // "allowJs": true,                       // Allow javascript files to be compiled (useful for gradual migration)
+    // "checkJs": true,                       // Report errors in .js files too
+    "typeRoots": ["./node_modules/@types"]    // Specify the location of type definitions
   },
   "include": [
-    "*.ts"                                 // Include all .ts files in the root
-    // Add other paths if your .ts files are in subdirectories, e.g., "src/**/*.ts"
+    "src/*.ts"                                // Include all .ts files in the root
   ],
   "exclude": [
-    "node_modules",                        // Exclude node_modules
-    "dist"                                 // Exclude the output directory
+    "node_modules",                           // Exclude node_modules
+    "dist"                                    // Exclude the output directory
   ]
 } 
