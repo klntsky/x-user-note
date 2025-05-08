@@ -1,0 +1,55 @@
+# Node.js / npm
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build output
+dist/
+
+# Logs
+*.log
+LOGS/
+*.log.*
+
+# IDE / Editor specific
+.cursor/
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Sensitive files
+secrets
+
+# Test reports / Coverage
+coverage/
+*.lcov
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Compiled TypeScript files (if not in dist)
+*.js
+*.js.map
+*.d.ts
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Specific files to NOT ignore from dist
+!dist/options.js
+!dist/content.js 
