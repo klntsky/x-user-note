@@ -1,34 +1,33 @@
-(async () => {
-  const ENABLE_HIGHLIGHT: boolean = false;
-  const DEBUG_LOG: boolean = false;
+(() => {
+  const ENABLE_HIGHLIGHT = false;
+  const DEBUG_LOG = false;
 
   /**
    * Logs messages to the console if DEBUG_LOG is true.
    * Prefixes messages with "[X Note addon]:".
    * @param {...string} args - The messages to log.
    */
-  const debugLog = (
-    DEBUG_LOG ?
-      function debugLog(...args: string[]) {
-        if (DEBUG_LOG) console.log("[X Note addon]:", ...args);
-      } : function () {
-      });
+  const debugLog = (...args: string[]) => {
+    if (DEBUG_LOG) {
+      console.log('[X Note addon]:', ...args);
+    }
+  };
 
-  debugLog("Content script started.");
+  debugLog('Content script started.');
 
-  // --- Helper function to normalize usernames --- 
+  // --- Helper function to normalize usernames ---
   /**
    * Removes the leading "@" from a username string.
    * @param username The username string to normalize.
    * @returns The normalized username.
    */
-  function normalizeUsername(username: string): string {
-    return username.replace(/^@/, '');
-  }
+  // function normalizeUsername(username: string): string {
+  //   return username.replace(/^@/, '');
+  // }
 
   // --- Global tracking for textareas ---
-  const trackedTextareas: Map<string, HTMLTextAreaElement[]> = new Map();
-  const debounceTimers: { [key: string]: number } = {}; // Map of username -> timer ID
+  const trackedTextareas = new Map<string, HTMLTextAreaElement[]>();
+  const debounceTimers: Record<string, number | undefined> = {}; // Map of username -> timer ID
 
   /**
    * Registers a textarea element for a given username.
@@ -50,17 +49,17 @@
    * @param username The username associated with the textarea.
    * @param ta The textarea element to unregister.
    */
-  function unregisterTextarea(username: string, ta: HTMLTextAreaElement) {
-    const arr = trackedTextareas.get(username);
-    if (!arr) return; // Guard against arr being undefined
-    const index = arr.indexOf(ta);
-    if (index !== -1) {
-      arr.splice(index, 1);
-    }
-    if (arr.length === 0) {
-      trackedTextareas.delete(username);
-    }
-  }
+  // function unregisterTextarea(username: string, ta: HTMLTextAreaElement) {
+  //   const arr = trackedTextareas.get(username);
+  //   if (!arr) return; // Guard against arr being undefined
+  //   const index = arr.indexOf(ta);
+  //   if (index !== -1) {
+  //     arr.splice(index, 1);
+  //   }
+  //   if (arr.length === 0) {
+  //     trackedTextareas.delete(username);
+  //   }
+  // }
 
   /**
    * Synchronizes the content of all registered textareas for a given username.
@@ -68,11 +67,13 @@
    * @param newValue The new value to set for the textareas.
    */
   function syncTextareas(username: string, newValue: string) {
-    debugLog("Syncing textareas for", username, newValue);
+    debugLog('Syncing textareas for', username, newValue);
     if (!trackedTextareas.has(username)) return;
     const arr = trackedTextareas.get(username);
     if (!arr) return;
-    const toUpdate = arr.filter((ta: HTMLTextAreaElement) => document.contains(ta));
+    const toUpdate = arr.filter((ta: HTMLTextAreaElement) =>
+      document.contains(ta)
+    );
     trackedTextareas.set(username, toUpdate);
     toUpdate.forEach((ta: HTMLTextAreaElement) => {
       if (ta.value !== newValue) {
@@ -94,7 +95,7 @@
     return new Promise((resolve, reject) => {
       chrome.storage.sync.get({ [key]: defaultValue }, (result) => {
         if (chrome.runtime.lastError) {
-          reject(chrome.runtime.lastError);
+          reject(new Error(chrome.runtime.lastError.message));
         } else {
           resolve(result[key] as T);
         }
@@ -104,16 +105,15 @@
 
   /**
    * Stores data in chrome.storage.sync.
-   * @template T The type of the data to store.
    * @param key The key to store the data under.
    * @param value The data to store.
    * @returns A promise that resolves when the data is successfully stored.
    */
-  async function setStoredData<T>(key: string, value: T): Promise<void> {
+  async function setStoredData(key: string, value: unknown): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       chrome.storage.sync.set({ [key]: value }, () => {
         if (chrome.runtime.lastError) {
-          reject(chrome.runtime.lastError);
+          reject(new Error(chrome.runtime.lastError.message));
         } else {
           resolve();
         }
@@ -128,13 +128,13 @@
    * @param eventText The event text to save.
    */
   async function saveEvent(username: string, eventText: string) {
-    debugLog("saveEvent called for", username);
+    debugLog('saveEvent called for', username);
     const key = 'muteBlockEvents-' + username;
     const events = await getStoredData<string[]>(key, []);
-    debugLog("Existing events for", username, ...events);
+    debugLog('Existing events for', username, ...events);
     events.unshift(eventText);
     await setStoredData(key, events);
-    debugLog("New event saved for", username, eventText);
+    debugLog('New event saved for', username, eventText);
   }
 
   /**
@@ -143,55 +143,11 @@
    * @returns A promise that resolves with an array of event strings.
    */
   async function loadEvents(username: string) {
-    debugLog("loadEvents called for", username);
+    debugLog('loadEvents called for', username);
     const key = 'muteBlockEvents-' + username;
     const events = await getStoredData<string[]>(key, []);
-    debugLog("Loaded events for", username, ...events);
+    debugLog('Loaded events for', username, ...events);
     return events;
-  }
-
-  /**
-   * Exports all data stored by the extension from chrome.storage.sync.
-   * Filters for keys starting with "muteBlockEvents-" or equal to "DEBUG_LOG".
-   * @returns A promise that resolves with an object containing the exported data.
-   */
-  async function exportAllData() {
-    debugLog("exportAllData called.");
-    return new Promise<Record<string, string[] | boolean>>((resolve, reject) => {
-      chrome.storage.sync.get(null, (items) => {
-        if (chrome.runtime.lastError) {
-          reject(chrome.runtime.lastError);
-          return;
-        }
-        let data: Record<string, string[] | boolean> = {};
-        for (let key in items) {
-          if (key.startsWith("muteBlockEvents-") || key === "DEBUG_LOG") {
-            // We assume items[key] conforms to string[] | boolean based on the key check
-            data[key] = items[key] as (string[] | boolean);
-            debugLog("Exporting key:", key, JSON.stringify(items[key]));
-          }
-        }
-        resolve(data);
-      });
-    });
-  }
-
-  type StorageData = Record<string, string[] | boolean>;
-
-  /**
-   * Imports data into chrome.storage.sync.
-   * @param data The data to import, either as a JSON string or a partial StorageData object.
-   * @returns A promise that resolves when the data is successfully imported.
-   */
-  async function importAllData(data: string | Partial<StorageData>) {
-    debugLog("importAllData called with data:", typeof data === 'string' ? data : JSON.stringify(data));
-    return new Promise<void>((resolve, reject) => {
-      const dataToSet = typeof data === 'string' ? JSON.parse(data) : data;
-      chrome.storage.sync.set(dataToSet, () => {
-        if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
-        else resolve();
-      });
-    });
   }
 
   // --- Timestamp helper ---
@@ -200,16 +156,16 @@
    * @returns The formatted timestamp string.
    */
   function getTimestamp() {
-    debugLog("getTimestamp called.");
+    debugLog('getTimestamp called.');
     const now = new Date();
     const pad = (num: number) => num.toString().padStart(2, '0');
     const day = pad(now.getDate());
     const month = pad(now.getMonth() + 1);
-    const year = now.getFullYear();
+    const year = now.getFullYear().toString();
     const hours = pad(now.getHours());
     const minutes = pad(now.getMinutes());
     const timestamp = `${day}/${month}/${year} ${hours}:${minutes}`;
-    debugLog("Timestamp generated:", timestamp);
+    debugLog('Timestamp generated:', timestamp);
     return timestamp;
   }
 
@@ -222,14 +178,15 @@
    * @param textarea The textarea element to resize.
    */
   function autoResizeTextarea(textarea: HTMLTextAreaElement) {
-    debugLog("autoResizeTextarea called for element:", textarea.tagName);
+    debugLog('autoResizeTextarea called for element:', textarea.tagName);
     textarea.style.height = 'auto';
     let newHeight = textarea.scrollHeight;
-    let contentLines = textarea.value.split("\n").length;
-    let lineHeight = parseFloat(window.getComputedStyle(textarea).lineHeight) || 20;
+    const contentLines = textarea.value.split('\n').length;
+    // const lineHeight =
+    //   parseFloat(window.getComputedStyle(textarea).lineHeight) || 20;
     if (contentLines > 1) newHeight += 5;
     if (newHeight < 20) newHeight = 20;
-    textarea.style.height = newHeight + "px";
+    textarea.style.height = `${String(newHeight)}px`;
   }
 
   // --- Profile textarea functions ---
@@ -239,16 +196,18 @@
    * @param username The username whose profile textarea needs to be updated.
    */
   async function updateTextareaForProfile(username: string) {
-    debugLog("updateTextareaForProfile called for", username);
+    debugLog('updateTextareaForProfile called for', username);
     const ta = document.getElementById('muteBlockInfoTextarea');
     if (!(ta instanceof HTMLTextAreaElement)) {
-      debugLog("Profile textarea with ID 'muteBlockInfoTextarea' not found or not a textarea. Aborting update.");
+      debugLog(
+        "Profile textarea with ID 'muteBlockInfoTextarea' not found or not a textarea. Aborting update."
+      );
       return;
     }
     const events = await loadEvents(username);
     ta.value = events.join('\n\n');
     autoResizeTextarea(ta);
-    debugLog("Profile textarea updated for", username);
+    debugLog('Profile textarea updated for', username);
   }
 
   /**
@@ -258,10 +217,10 @@
    * @param value The new content of the textarea.
    */
   async function saveTextareaContents(username: string, value: string) {
-    debugLog("saveTextareaContents called for", username);
+    debugLog('saveTextareaContents called for', username);
     const events = value.split('\n\n').filter((s: string) => s.trim() !== '');
     await setStoredData('muteBlockEvents-' + username, events);
-    debugLog("Profile textarea contents saved for", username, ...events);
+    debugLog('Profile textarea contents saved for', username, ...events);
   }
 
   // Insert the profile textarea under the user description.
@@ -271,39 +230,45 @@
    * It handles existing textareas and updates based on username changes.
    */
   function addTextareaToProfile() {
-    debugLog("addTextareaToProfile called.");
-    const profileAnchorElement = document.querySelector('[data-testid="UserJoinDate"]');
+    debugLog('addTextareaToProfile called.');
+    const profileAnchorElement = document.querySelector(
+      '[data-testid="UserJoinDate"]'
+    );
     if (!profileAnchorElement) {
-      debugLog("profile anchor element not found. Aborting.");
+      debugLog('profile anchor element not found. Aborting.');
       return;
     }
 
     // actually contains human-readable name too
-    const userNameContainerElement = document.querySelector<HTMLElement>('[data-testid="UserName"]');
+    const userNameContainerElement = document.querySelector<HTMLElement>(
+      '[data-testid="UserName"]'
+    );
     const userNameElement = userNameContainerElement
-      ? [...userNameContainerElement.querySelectorAll<HTMLSpanElement>('span')].pop()
+      ? [
+          ...userNameContainerElement.querySelectorAll<HTMLSpanElement>('span'),
+        ].pop()
       : undefined;
     const username = userNameElement?.textContent?.trim() ?? '';
-    debugLog("Detected username (profile):", username);
+    debugLog('Detected username (profile):', username);
 
     // Check if container exists.
     let existingContainer = document.getElementById('muteBlockInfoContainer');
     if (existingContainer) {
       // If the container's data-username doesn't match, remove it.
-      if (existingContainer.getAttribute("data-username") !== username) {
-        debugLog("Existing container belongs to a different user. Removing.");
+      if (existingContainer.getAttribute('data-username') !== username) {
+        debugLog('Existing container belongs to a different user. Removing.');
         existingContainer.remove();
         existingContainer = null;
       } else {
-        debugLog("Profile textarea container already exists for", username);
+        debugLog('Profile textarea container already exists for', username);
         return;
       }
     }
 
     const container = document.createElement('div');
     container.id = 'muteBlockInfoContainer';
-    container.setAttribute("data-username", username);
-    container.style.marginTop = "10px";
+    container.setAttribute('data-username', username);
+    container.style.marginTop = '10px';
 
     const ta = document.createElement('textarea');
     ta.id = 'muteBlockInfoTextarea';
@@ -315,42 +280,48 @@
     ta.style.lineHeight = '1.25';
     ta.style.backgroundColor = 'transparent';
     ta.rows = 1;
-    ta.placeholder = "Your notes for " + username + " (visible only to you)";
+    ta.placeholder = 'Your notes for ' + username + ' (visible only to you)';
     // Save content on every input event.
     ta.addEventListener('input', function () {
-      debugLog("Profile textarea input event triggered.");
+      debugLog('Profile textarea input event triggered.');
       autoResizeTextarea(ta);
-      saveTextareaContents(username, ta.value);
+      void saveTextareaContents(username, ta.value);
       if (debounceTimers[username]) {
         clearTimeout(debounceTimers[username]);
       }
-      debounceTimers[username] = setTimeout(() => {
+      debounceTimers[username] = window.setTimeout(() => {
         syncTextareas(username, ta.value);
-        delete debounceTimers[username];
+        debounceTimers[username] = undefined;
       }, 300);
     });
     ta.addEventListener('focus', function () {
-      debugLog("Profile textarea focus event triggered. Expanding fully.");
+      debugLog('Profile textarea focus event triggered. Expanding fully.');
       autoResizeTextarea(ta);
     });
-    loadEvents(username).then(events => {
+    void loadEvents(username).then((events) => {
       ta.value = events.join('\n\n');
       autoResizeTextarea(ta);
     });
     container.appendChild(ta);
-    debugLog("Profile textarea created and populated.");
+    debugLog('Profile textarea created and populated.');
     registerTextarea(username, ta);
     if (profileAnchorElement.parentElement) {
-      profileAnchorElement.parentElement.insertBefore(container, profileAnchorElement.nextSibling);
-      debugLog("Profile textarea container added to the profile page.");
+      profileAnchorElement.parentElement.insertBefore(
+        container,
+        profileAnchorElement.nextSibling
+      );
+      debugLog('Profile textarea container added to the profile page.');
     } else {
-      debugLog("Error: profileAnchorElement.parentElement is null. Cannot add textarea container.");
+      debugLog(
+        'Error: profileAnchorElement.parentElement is null. Cannot add textarea container.'
+      );
     }
   }
 
   // Observe for profile page content dynamically loaded.
-  const profileObserver = new MutationObserver((mutations) => {
-    if (/^\/[^\/]+\/?$/.test(window.location.pathname)) {
+
+  const profileObserver = new MutationObserver(() => {
+    if (/^\/[^/]+\/?$/.test(window.location.pathname)) {
       addTextareaToProfile();
     }
   });
@@ -363,13 +334,14 @@
    * @returns The HTMLElement of the tweet container, or null if not found.
    */
   function findTweetContainerByStatusId(tweetId: string): HTMLElement | null {
-    debugLog("Searching for tweet container with status id:", tweetId);
-    const potentialContainers = document.querySelectorAll('article[data-testid="tweet"]');
-    for (let i = 0; i < potentialContainers.length; i++) {
-      const container = potentialContainers[i] as HTMLElement;
+    debugLog('Searching for tweet container with status id:', tweetId);
+    const potentialContainers = document.querySelectorAll<HTMLElement>(
+      'article[data-testid="tweet"]'
+    );
+    for (const container of potentialContainers) {
       const link = container.querySelector(`a[href*="/status/${tweetId}"]`);
       if (link) {
-        debugLog("Found tweet container by status id:", container.tagName || "undefined");
+        debugLog('Found tweet container by status id:', container.tagName);
         return container;
       }
     }
@@ -385,17 +357,17 @@
    */
   function cleanTweetContent(content: string | null) {
     if (!content) {
-      debugLog("No content to clean.");
-      return "";
+      debugLog('No content to clean.');
+      return '';
     }
-    debugLog("Cleaning tweet content.");
+    debugLog('Cleaning tweet content.');
     // Replace newlines with spaces for a more compact display.
-    let cleanedContent = content.replace(/\n+/g, ' ').trim();
+    const cleanedContent = content.replace(/\n+/g, ' ').trim();
     // Truncate if too long.
     // if (cleanedContent.length > 100) {
     //   cleanedContent = cleanedContent.substring(0, 97) + '...';
     // }
-    debugLog("Cleaned tweet content:", cleanedContent);
+    debugLog('Cleaned tweet content:', cleanedContent);
     return cleanedContent;
   }
 
@@ -403,28 +375,37 @@
   /**
    * Handles the mouseover event for a mute/block button.
    * Highlights the corresponding tweet container.
-   * @param event The mouseover event.
    * @param buttonElement The button element.
    */
-  function handleMuteBlockButtonMouseOver(event: MouseEvent, buttonElement: HTMLElement & { _highlightedTweet?: HTMLElement | null }) {
-    debugLog("Mouseover on mute/block button detected. Button tagName:", buttonElement.tagName);
-    const popupContainer = buttonElement.closest('[role="menu"]') || buttonElement;
+  function handleMuteBlockButtonMouseOver(
+    buttonElement: HTMLElement & { _highlightedTweet?: HTMLElement | null }
+  ) {
+    debugLog(
+      'Mouseover on mute/block button detected. Button tagName:',
+      buttonElement.tagName
+    );
+    const popupContainer =
+      buttonElement.closest('[role="menu"]') ?? buttonElement;
     if (!(popupContainer instanceof Element)) return;
 
-    const engagementLink = popupContainer.querySelector('a[data-testid="tweetEngagements"]') ||
+    const engagementLink =
+      popupContainer.querySelector('a[data-testid="tweetEngagements"]') ??
       popupContainer.querySelector('a[href*="/status/"]');
 
     if (engagementLink instanceof HTMLAnchorElement) {
       const href = engagementLink.getAttribute('href');
       if (href) {
-        debugLog("Engagement link found with href:", href);
-        const tweetIdMatch = href.match(/\/status\/(\d+)/);
+        debugLog('Engagement link found with href:', href);
+        const tweetIdMatch = /\/status\/(\d+)/.exec(href);
         if (tweetIdMatch) {
           const tweetId = tweetIdMatch[1];
           const container = findTweetContainerByStatusId(tweetId);
           if (container && ENABLE_HIGHLIGHT) {
-            debugLog("Highlighting tweet container tagName:", container.tagName);
-            container.style.outline = "2px solid red";
+            debugLog(
+              'Highlighting tweet container tagName:',
+              container.tagName
+            );
+            container.style.outline = '2px solid red';
             buttonElement._highlightedTweet = container;
           }
         }
@@ -435,17 +416,22 @@
   /**
    * Handles the mouseout event for a mute/block button.
    * Removes the highlight from the corresponding tweet container.
-   * @param event The mouseout event.
    * @param buttonElement The button element.
    */
-  function handleMuteBlockButtonMouseOut(event: MouseEvent, buttonElement: HTMLElement & { _highlightedTweet?: HTMLElement | null }) {
-    debugLog("Mouseout on mute/block button detected. Button tagName:", buttonElement.tagName);
-    const popupContainer = buttonElement.closest('[role="menu"]') || buttonElement;
+  function handleMuteBlockButtonMouseOut(
+    buttonElement: HTMLElement & { _highlightedTweet?: HTMLElement | null }
+  ) {
+    debugLog(
+      'Mouseout on mute/block button detected. Button tagName:',
+      buttonElement.tagName
+    );
+    const popupContainer =
+      buttonElement.closest('[role="menu"]') ?? buttonElement;
     if (popupContainer instanceof HTMLElement) {
-      popupContainer.style.outline = "";
+      popupContainer.style.outline = '';
     }
     if (buttonElement._highlightedTweet) {
-      buttonElement._highlightedTweet.style.outline = "";
+      buttonElement._highlightedTweet.style.outline = '';
       buttonElement._highlightedTweet = null;
     }
   }
@@ -455,25 +441,35 @@
    * @param engagementLink The engagement link element.
    * @returns An object containing the tweet URL and text, or null if details cannot be extracted.
    */
-  function extractTweetDetailsFromButton(engagementLink: HTMLAnchorElement): { tweetUrl: string, tweetText: string } | null {
-    let tweetUrl = "";
-    let tweetText = "";
+  function extractTweetDetailsFromButton(
+    engagementLink: HTMLAnchorElement
+  ): { tweetUrl: string; tweetText: string } | null {
+    let tweetUrl = '';
+    let tweetText = '';
     const href = engagementLink.getAttribute('href');
     if (!href) return null;
 
-    debugLog("Engagement link href:", href);
-    const tweetIdMatch = href.match(/\/status\/(\d+)/);
+    debugLog('Engagement link href:', href);
+    const tweetIdMatch = /\/status\/(\d+)/.exec(href);
     if (tweetIdMatch) {
       const tweetId = tweetIdMatch[1];
       const container = findTweetContainerByStatusId(tweetId);
       if (container) {
         const linkInContainer = container.querySelector('a[href*="/status/"]');
-        tweetUrl = linkInContainer instanceof HTMLAnchorElement ? linkInContainer.href : href;
-        const tweetTextElem = container.querySelector('[data-testid="tweetText"]');
+        tweetUrl =
+          linkInContainer instanceof HTMLAnchorElement
+            ? linkInContainer.href
+            : href;
+        const tweetTextElem = container.querySelector(
+          '[data-testid="tweetText"]'
+        );
         if (tweetTextElem) {
-          tweetText = cleanTweetContent(tweetTextElem.textContent || "");
+          tweetText = cleanTweetContent(tweetTextElem.textContent ?? '');
         } else {
-          debugLog('WARNING: tweetTextElem not found, falling back to container innerText. Container tagName:', container.tagName);
+          debugLog(
+            'WARNING: tweetTextElem not found, falling back to container innerText. Container tagName:',
+            container.tagName
+          );
           tweetText = cleanTweetContent(container.innerText);
         }
       } else {
@@ -492,32 +488,38 @@
    * @param tweetUrl The URL of the tweet.
    * @param tweetText The text content of the tweet.
    */
-  async function processMuteBlockAction(buttonText: string | null, tweetUrl: string, tweetText: string) {
+  async function processMuteBlockAction(
+    buttonText: string | null,
+    tweetUrl: string,
+    tweetText: string
+  ) {
     if (!buttonText) {
-      debugLog("Button text is null, cannot process action.");
+      debugLog('Button text is null, cannot process action.');
       return;
     }
-    const usernameMatch = buttonText.match(/@(\S+)/);
+    const usernameMatch = /@(\S+)/.exec(buttonText);
     if (!usernameMatch) {
-      debugLog("Username not found in button text:", buttonText);
+      debugLog('Username not found in button text:', buttonText);
       return;
     }
-    const username = "@" + usernameMatch[1];
+    const username = '@' + usernameMatch[1];
     const timestamp = getTimestamp();
-    const action = buttonText.includes("Mute") ? "Muted" : "Blocked";
+    const action = buttonText.includes('Mute') ? 'Muted' : 'Blocked';
     const logEntry = `${action} on ${timestamp}. Reason:\n${tweetUrl}\n${tweetText}`;
     await saveEvent(username, logEntry);
-    debugLog("Mute/Block event saved for", username, "Log entry:", logEntry);
+    debugLog('Mute/Block event saved for', username, 'Log entry:', logEntry);
 
     const pathParts = window.location.pathname.split('/');
-    if (pathParts.length >= 2 && ("@" + pathParts[1]) === username) {
-      debugLog("Updating profile textarea for current profile", username);
-      const muteBlockInfoTextarea = document.getElementById('muteBlockInfoTextarea') as HTMLTextAreaElement | null;
+    if (pathParts.length >= 2 && '@' + pathParts[1] === username) {
+      debugLog('Updating profile textarea for current profile', username);
+      const muteBlockInfoTextarea = document.getElementById(
+        'muteBlockInfoTextarea'
+      ) as HTMLTextAreaElement | null;
       if (muteBlockInfoTextarea) {
         await updateTextareaForProfile(username);
         syncTextareas(username, muteBlockInfoTextarea.value);
       } else {
-        debugLog("muteBlockInfoTextarea not found on page.");
+        debugLog('muteBlockInfoTextarea not found on page.');
       }
     }
   }
@@ -525,30 +527,39 @@
   /**
    * Handles the click event for a mute/block button.
    * Extracts tweet details, processes the action, and logs the event.
-   * @param event The click event.
    * @param buttonElement The button element.
    */
-  async function handleMuteBlockButtonClick(event: MouseEvent, buttonElement: HTMLElement) {
-    debugLog("Mute/Block button click detected. Button tagName:", buttonElement.tagName);
-    const popupContainer = buttonElement.closest('[role="menu"]') || buttonElement;
+  async function handleMuteBlockButtonClick(buttonElement: HTMLElement) {
+    debugLog(
+      'Mute/Block button click detected. Button tagName:',
+      buttonElement.tagName
+    );
+    const popupContainer =
+      buttonElement.closest('[role="menu"]') ?? buttonElement;
     if (!(popupContainer instanceof Element)) return;
 
-    const engagementLink = popupContainer.querySelector('a[data-testid="tweetEngagements"]') ||
+    const engagementLink =
+      popupContainer.querySelector('a[data-testid="tweetEngagements"]') ??
       popupContainer.querySelector('a[href*="/status/"]');
 
-    let tweetUrl = "";
-    let tweetText = "";
+    let tweetUrl = '';
+    let tweetText = '';
 
     if (engagementLink instanceof HTMLAnchorElement) {
       const details = extractTweetDetailsFromButton(engagementLink);
       if (details) {
         tweetUrl = details.tweetUrl;
         tweetText = details.tweetText;
-      } else if (engagementLink.href) { // Fallback if details are null but href exists
+      } else if (engagementLink.href) {
+        // Fallback if details are null but href exists
         tweetUrl = engagementLink.href;
       }
     }
-    await processMuteBlockAction(buttonElement.textContent, tweetUrl, tweetText);
+    await processMuteBlockAction(
+      buttonElement.textContent,
+      tweetUrl,
+      tweetText
+    );
   }
 
   /**
@@ -557,16 +568,33 @@
    * @param buttonElement The HTMLElement of the button.
    */
   function attachListenerToMuteBlockButton(buttonElement: HTMLElement) {
-    debugLog("attachListenerToMuteBlockButton called for element with tagName:", buttonElement.tagName);
-    if (buttonElement.getAttribute('data-mute-listener-attached') === "true") {
-      debugLog("Listener already attached to this button.");
+    debugLog(
+      'attachListenerToMuteBlockButton called for element with tagName:',
+      buttonElement.tagName
+    );
+    if (buttonElement.getAttribute('data-mute-listener-attached') === 'true') {
+      debugLog('Listener already attached to this button.');
       return;
     }
     buttonElement.setAttribute('data-mute-listener-attached', 'true');
 
-    buttonElement.addEventListener('mouseover', (e: MouseEvent) => handleMuteBlockButtonMouseOver(e, buttonElement as HTMLElement & { _highlightedTweet?: HTMLElement | null }));
-    buttonElement.addEventListener('mouseout', (e: MouseEvent) => handleMuteBlockButtonMouseOut(e, buttonElement as HTMLElement & { _highlightedTweet?: HTMLElement | null }));
-    buttonElement.addEventListener('click', (e: MouseEvent) => handleMuteBlockButtonClick(e, buttonElement as HTMLElement));
+    buttonElement.addEventListener('mouseover', (_e: MouseEvent) => {
+      handleMuteBlockButtonMouseOver(
+        buttonElement as HTMLElement & {
+          _highlightedTweet?: HTMLElement | null;
+        }
+      );
+    });
+    buttonElement.addEventListener('mouseout', (_e: MouseEvent) => {
+      handleMuteBlockButtonMouseOut(
+        buttonElement as HTMLElement & {
+          _highlightedTweet?: HTMLElement | null;
+        }
+      );
+    });
+    buttonElement.addEventListener('click', (_e: MouseEvent) => {
+      void handleMuteBlockButtonClick(buttonElement);
+    });
   }
 
   // --- Observe new mute/block buttons ---
@@ -574,19 +602,29 @@
     mutations.forEach(function (mutation) {
       mutation.addedNodes.forEach(function (node) {
         if (node instanceof Element) {
-          const elementNode = node as Element;
-          if (elementNode.getAttribute('role') === 'menuitem' &&
-            elementNode.textContent && (elementNode.textContent.includes("Mute") || elementNode.textContent.includes("Block"))) {
-            debugLog("Found new mute/block menuitem:", elementNode.tagName);
+          const elementNode = node;
+          if (
+            elementNode.getAttribute('role') === 'menuitem' &&
+            elementNode.textContent &&
+            (elementNode.textContent.includes('Mute') ||
+              elementNode.textContent.includes('Block'))
+          ) {
+            debugLog('Found new mute/block menuitem:', elementNode.tagName);
             attachListenerToMuteBlockButton(elementNode as HTMLElement);
           }
           // Check if querySelectorAll exists before calling it
           if (typeof elementNode.querySelectorAll === 'function') {
-            const muteButtons = elementNode.querySelectorAll('[role="menuitem"]');
-            if (muteButtons && muteButtons.length > 0) {
-              muteButtons.forEach(function (btn) { // btn is an Element here
-                if (btn.textContent && (btn.textContent.includes("Mute") || btn.textContent.includes("Block"))) {
-                  attachListenerToMuteBlockButton(btn as HTMLElement);
+            const muteButtons =
+              elementNode.querySelectorAll<HTMLElement>('[role="menuitem"]');
+            if (muteButtons.length > 0) {
+              muteButtons.forEach(function (btn) {
+                // btn is an Element here
+                if (
+                  btn.textContent &&
+                  (btn.textContent.includes('Mute') ||
+                    btn.textContent.includes('Block'))
+                ) {
+                  attachListenerToMuteBlockButton(btn);
                 }
               });
             }
@@ -596,11 +634,11 @@
     });
   });
   buttonObserver.observe(document.body, { childList: true, subtree: true });
-  debugLog("[DEBUG] Button observer set up.");
+  debugLog('[DEBUG] Button observer set up.');
 
   // On initial load, if on a profile page, insert the profile textarea.
-  if (/^\/[^\/]+\/?$/.test(window.location.pathname)) {
-    debugLog("On initial load: profile page detected.");
+  if (/^\/[^/]+\/?$/.test(window.location.pathname)) {
+    debugLog('On initial load: profile page detected.');
     addTextareaToProfile();
   }
 
@@ -613,9 +651,9 @@
    */
   async function waitForUsernameAnchor(hoverCard: Element) {
     for (let i = 0; i < 51; i++) {
-      let anchor = hoverCard.querySelector('a[href^="/"]');
+      const anchor = hoverCard.querySelector('a[href^="/"]');
       if (anchor) return anchor;
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
     return null;
   }
@@ -625,51 +663,88 @@
    * @param hoverCard The hover card element.
    * @returns A promise that resolves to the username (e.g., "@username") or null if not found.
    */
-  async function extractUsernameFromHoverCard(hoverCard: Element): Promise<string | null> {
+  async function extractUsernameFromHoverCard(
+    hoverCard: Element
+  ): Promise<string | null> {
     const usernameAnchor = await waitForUsernameAnchor(hoverCard);
     if (!usernameAnchor) {
-      debugLog("No username anchor found in hover card after waiting.");
+      debugLog('No username anchor found in hover card after waiting.');
       return null;
     }
     const usernameHref = usernameAnchor.getAttribute('href');
     if (!usernameHref) {
-      debugLog("Username anchor found but href is null.");
+      debugLog('Username anchor found but href is null.');
       return null;
     }
-    return "@" + usernameHref.slice(1);
+    return '@' + usernameHref.slice(1);
   }
 
   /**
    * Creates and configures a textarea element for user notes (Hover Card).
    * @param username The username for whom the notes are.
+   * @param hoverCard The hovercard DOM element.
    * @returns The configured textarea element.
    */
-  function createNotesTextarea(username: string): HTMLTextAreaElement {
+  function createNotesTextarea(
+    username: string,
+    hoverCard: Element
+  ): HTMLTextAreaElement {
     const ta = document.createElement('textarea');
     ta.style.width = '100%';
     ta.style.boxSizing = 'border-box';
     ta.style.borderRadius = '0 0 10px 10px';
     ta.style.resize = 'none';
     ta.style.lineHeight = '1.25';
-    ta.style.padding = '1em';
+    ta.style.paddingLeft = '1em';
+    ta.style.paddingRight = '1em';
     ta.style.backgroundColor = 'transparent';
     ta.rows = 1;
-    ta.placeholder = "Your notes for " + username + " (visible only to you)";
-    ta.style.height = "50px";
-    ta.style.overflow = "hidden";
+    ta.placeholder = 'Your notes for ' + username + ' (visible only to you)';
+    ta.style.height = '50px';
+    ta.style.overflow = 'hidden';
+
+    // Handler to prevent the hovercard from closing when the textarea is focused
+    const preventHovercardCloseHandler = (event: Event) => {
+      debugLog(
+        '[X Note addon] hovercard.mouseleave listener fired while textarea focused. Stopping propagation.'
+      );
+      event.stopPropagation();
+    };
+
+    ta.addEventListener('focus', () => {
+      debugLog(
+        `[X Note addon] Textarea for ${username} focused. Adding mouseleave listener to hoverCard.`
+      );
+      hoverCard.addEventListener(
+        'mouseleave',
+        preventHovercardCloseHandler,
+        true
+      ); // Use capture phase
+    });
+
+    ta.addEventListener('blur', () => {
+      debugLog(
+        `[X Note addon] Textarea for ${username} blurred. Removing mouseleave listener from hoverCard.`
+      );
+      hoverCard.removeEventListener(
+        'mouseleave',
+        preventHovercardCloseHandler,
+        true
+      );
+    });
 
     ta.addEventListener('input', function () {
-      saveTextareaContents(username, ta.value);
+      void saveTextareaContents(username, ta.value);
       if (debounceTimers[username]) {
         clearTimeout(debounceTimers[username]);
       }
-      debounceTimers[username] = setTimeout(() => {
+      debounceTimers[username] = window.setTimeout(() => {
         syncTextareas(username, ta.value);
-        delete debounceTimers[username];
+        debounceTimers[username] = undefined;
       }, 300);
     });
 
-    loadEvents(username).then(events => {
+    void loadEvents(username).then((events) => {
       ta.value = events.join('\n\n');
     });
 
@@ -684,7 +759,6 @@
   function createTextareaContainer(): HTMLDivElement {
     const container = document.createElement('div');
     container.className = 'hovercard-textfield';
-    container.style.marginTop = "5px";
     return container;
   }
 
@@ -696,36 +770,36 @@
    */
   async function addTextFieldToHoverCard(hoverCard: Element) {
     if (hoverCard.querySelector('.hovercard-textfield')) {
-      debugLog("Hover card text field already exists.");
+      debugLog('Hover card text field already exists.');
       return;
     }
 
     const username = await extractUsernameFromHoverCard(hoverCard);
     if (!username) {
-      debugLog("Could not extract username from hover card.");
+      debugLog('Could not extract username from hover card.');
       return;
     }
     // check again to prevent a race condition
     if (hoverCard.querySelector('.hovercard-textfield')) {
-      debugLog("Hover card text field already exists (race condition check).");
+      debugLog('Hover card text field already exists (race condition check).');
       return;
     }
-    debugLog("Detected username (hover card):", username);
+    debugLog('Detected username (hover card):', username);
 
     const container = createTextareaContainer();
-    const ta = createNotesTextarea(username);
+    const ta = createNotesTextarea(username, hoverCard);
     container.appendChild(ta);
 
     // Instead of attaching to the Profile Summary button's parent,
     // try to attach to an inner container in the hover card.
-    let innerContainer = hoverCard.querySelector('div'); // hoverCard is Element, so this is fine
+    const innerContainer = hoverCard.querySelector('div'); // hoverCard is Element, so this is fine
     if (innerContainer) {
       innerContainer.appendChild(container);
-      debugLog("Hover card text field inserted into inner container.");
+      debugLog('Hover card text field inserted into inner container.');
     } else {
       // Fallback: append at the end of the hover card.
       hoverCard.appendChild(container); // appendChild is on Node, Element extends Node
-      debugLog("Hover card text field inserted at end of hover card.");
+      debugLog('Hover card text field inserted at end of hover card.');
     }
   }
 
@@ -734,20 +808,26 @@
     mutations.forEach((mutation) => {
       mutation.addedNodes.forEach((node) => {
         if (node instanceof Element) {
-          const elementNode = node as Element;
+          const elementNode = node;
           // Look for a hover card container.
-          if (elementNode.hasAttribute("data-testid") && elementNode.getAttribute("data-testid") === "HoverCard") {
-            debugLog("HoverCard detected:", elementNode.tagName);
-            addTextFieldToHoverCard(elementNode);
+          if (
+            elementNode.hasAttribute('data-testid') &&
+            elementNode.getAttribute('data-testid') === 'HoverCard'
+          ) {
+            debugLog('HoverCard detected:', elementNode.tagName);
+            void addTextFieldToHoverCard(elementNode);
           } else {
             // Also check descendants.
             // Check if querySelectorAll exists before calling it
             if (typeof elementNode.querySelectorAll === 'function') {
-              let hoverCards = elementNode.querySelectorAll('[data-testid="HoverCard"]');
-              if (hoverCards && hoverCards.length > 0) {
-                hoverCards.forEach((hc: Element) => { // hc is an Element
-                  debugLog("HoverCard detected in subtree:", hc.tagName);
-                  addTextFieldToHoverCard(hc);
+              const hoverCards = elementNode.querySelectorAll(
+                '[data-testid="HoverCard"]'
+              );
+              if (hoverCards.length > 0) {
+                hoverCards.forEach((hc: Element) => {
+                  // hc is an Element
+                  debugLog('HoverCard detected in subtree:', hc.tagName);
+                  void addTextFieldToHoverCard(hc);
                 });
               }
             }
@@ -758,5 +838,5 @@
   });
 
   hoverCardObserver.observe(document.body, { childList: true, subtree: true });
-  debugLog("Hover card observer set up.");
+  debugLog('Hover card observer set up.');
 })();
