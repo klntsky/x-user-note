@@ -1,14 +1,23 @@
 {
+  "type": "module",
   "scripts": {
-    "build": "tsc"
+    "format": "prettier --config prettier.config.js . --write",
+    "format:check": "prettier --config prettier.config.js . --check",
+    "lint": "eslint --config eslint.config.ts . --ext .ts,.tsx",
+    "lint:fix": "eslint --config eslint.config.ts . --ext .ts,.tsx --fix",
+    "build": "tsc -p tsconfig.json"
   },
   "devDependencies": {
+    "@eslint/js": "^9.26.0",
     "@types/chrome": "^0.0.320",
     "@typescript-eslint/eslint-plugin": "^8.32.0",
     "@typescript-eslint/parser": "^8.32.0",
     "eslint": "^9.26.0",
     "eslint-config-prettier": "^10.1.3",
+    "jiti": "^2.4.2",
     "prettier": "3.5.3",
-    "typescript": "^5.8.3"
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.32.0"
   }
 }
