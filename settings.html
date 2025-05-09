@@ -1,22 +1,243 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-<head>
-  <meta charset="UTF-8">
-  <title>Twitter Mute/Block Tracker Settings</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    textarea { width: 100%; height: 200px; font-family: monospace; }
-    button { margin-top: 10px; margin-right: 10px; }
-  </style>
-  <script src="dist/options.js"></script>
-</head>
-<body>
-  <h1>Twitter Mute/Block Tracker Settings</h1>
-  <h2>Backup / Restore Data</h2>
-  <textarea id="backupArea" placeholder="Your backup data will appear here"></textarea>
-  <br>
-  <button id="exportButton">Download backup to file</button>
-  <button id="importButton">Load backup from file</button>
-  <input type="file" id="importFile" style="display:none">
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <title>X User Notes Settings</title>
+    <style>
+      html {
+        font-size: 100%; /* Establishes base for rem units, typically 16px */
+      }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica,
+          Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f0f2f5;
+        color: #1c1e21;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+        font-size: 1rem; /* Default body font size */
+        line-height: 1.6; /* Default line height for body */
+      }
+      .container {
+        background-color: #ffffff;
+        padding: 30px 40px;
+        border-radius: 8px;
+        box-shadow:
+          0 2px 4px rgba(0, 0, 0, 0.1),
+          0 8px 16px rgba(0, 0, 0, 0.1);
+        margin: 20px;
+        width: 100%;
+        max-width: 800px;
+        box-sizing: border-box;
+      }
+      h1,
+      h2,
+      h3 {
+        color: #0056b3; /* A nice blue for headers */
+        line-height: 1.3;
+      }
+      h1 {
+        font-size: 2.2rem; /* Was 2.2em */
+        text-align: center;
+        margin-bottom: 30px;
+      }
+      h2 {
+        font-size: 1.8rem; /* Was 1.8em */
+        margin-top: 30px;
+        margin-bottom: 15px;
+        border-bottom: 1px solid #eaeaea;
+        padding-bottom: 5px;
+      }
+      h3 {
+        font-size: 1.5rem; /* Was 1.5em */
+        margin-top: 25px;
+        margin-bottom: 10px;
+      }
+      p,
+      li {
+        font-size: 1.2rem; /* Was 1.2em, effectively 1.2 * parent. Here, 1.2 * root */
+        line-height: 1.75; /* Was 1.75 */
+        color: #333;
+      }
+      ul {
+        padding-left: 20px;
+        list-style-position: outside;
+      }
+      li {
+        margin-bottom: 0.5rem;
+      }
+      strong {
+        color: #0056b3;
+        font-weight: 600;
+      }
+      code {
+        background-color: #f8f8f8;
+        padding: 0.2em 0.4em;
+        margin: 0;
+        font-size: 0.9rem; /* Relative to root */
+        border-radius: 3px;
+        font-family:
+          'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier,
+          monospace;
+      }
+      .controls-section {
+        display: flex; /* Arrange buttons in a row */
+        align-items: center; /* Align items vertically */
+        gap: 15px; /* Adds space between the flex items (buttons) */
+        margin-top: 20px; /* Space below H1 */
+        margin-bottom: 30px; /* Space above main content */
+        padding: 10px 0; /* Add some vertical padding */
+        /* border-top: 1px solid #eaeaea; --- Removed as it's now a primary control bar */
+      }
+      button {
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica,
+          Arial, sans-serif;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 1rem; /* Was 1em, now 1rem relative to root */
+        margin-top: 10px;
+        margin-right: 10px;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+        flex: 1; /* Allows buttons to grow and take equal width */
+        min-width: 0; /* Important for flex items to shrink properly if needed */
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+      input[type='file'] {
+        display: none;
+      }
+      /* Responsive adjustments */
+      @media (max-width: 600px) {
+        .container {
+          margin: 10px;
+          padding: 20px;
+        }
+        h1 {
+          font-size: 1.8rem; /* Was 1.8em */
+        }
+        h2 {
+          font-size: 1.5rem; /* Was 1.5em */
+        }
+        h3 {
+          font-size: 1.3rem; /* Was 1.3em */
+        }
+        p,
+        li {
+          font-size: 1.1rem; /* Was 1.1em */
+        }
+        button {
+          width: 100%;
+          margin-right: 0;
+          margin-bottom: 10px;
+          font-size: 0.95rem;
+        }
+      }
+    </style>
+    <script src="dist/options.js" defer></script>
+  </head>
+  <body>
+    <div class="container">
+      <h1>X User Notes - Why Did I Block?</h1>
+
+      <div class="controls-section">
+        <button id="exportButton">Download Backup File</button>
+        <button id="importButton">Load Backup File</button>
+        <input type="file" id="importFile" accept=".json" />
+        <button id="githubButton">View on Github</button>
+      </div>
+
+      <p>
+        A simple browser extension for x.com (formerly Twitter) that helps you
+        remember <em>why</em> you muted or blocked a user and allows you to keep
+        private notes on user profiles, visible only to you.
+      </p>
+
+      <h2>Why use this extension?</h2>
+      <p>
+        Have you ever come across a profile on x.com and thought, "Why did I
+        mute/block this person?" or wished you could jot down a private reminder
+        about a user? This extension solves that problem.
+      </p>
+
+      <h2>Features</h2>
+      <ul>
+        <li>
+          <strong>Automatically logging mute/block events:</strong> When you
+          mute or block a user, the extension saves a timestamp and the tweet
+          you were viewing at the time, giving you context later.
+        </li>
+        <li>
+          <strong>Adding private notes fields:</strong> A dedicated text area is
+          added to user profile pages and hover cards where you can write
+          personal notes about that user.
+        </li>
+        <li>
+          <strong>Keeping your data private:</strong> All saved notes and
+          mute/block logs are stored locally in your browser's storage and are
+          not sent to any external server.
+        </li>
+        <li>
+          <strong>Data Export/Import:</strong> Easily back up your notes and
+          logs or transfer them between browsers.
+        </li>
+      </ul>
+
+      <h2>How to Use</h2>
+      <ul>
+        <li>
+          <strong>Mute/Block Tracking:</strong> Simply mute or block a user as
+          you normally would on x.com. The extension will automatically capture
+          the event and the relevant tweet context and save it. You can view
+          these logs on the user's profile page in the notes section.
+        </li>
+        <li>
+          <strong>Adding Notes:</strong>
+          <ul>
+            <li>
+              <strong>On a profile page:</strong> Navigate to any user's
+              profile. A text area labeled "Your notes for @username (visible
+              only to you)" will appear below their join date/bio. Click into
+              this area and start typing your notes. Your changes are saved
+              automatically.
+            </li>
+            <li>
+              <strong>On a hover card:</strong> When you hover over a username
+              to bring up the user's hover card, a text area will appear at the
+              bottom of the card. You can add notes here as well. Notes added
+              here will sync with the notes on the full profile page.
+            </li>
+          </ul>
+        </li>
+      </ul>
+
+      <h2>Data Privacy</h2>
+      <p>
+        Your notes and mute/block logs are stored exclusively in your browser
+        profile synced storage (<code>chrome.storage.sync</code>).
+      </p>
+      <ul>
+        <li>Only you can see your notes.</li>
+        <li>
+          The data is synced between devices if you log in to the same browser
+          profile
+        </li>
+      </ul>
+
+      <h2>License</h2>
+      <p>MIT</p>
+    </div>
+  </body>
 </html>
