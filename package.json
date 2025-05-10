@@ -6,7 +6,8 @@
     "lint": "eslint --config eslint.config.ts . --ext .ts,.tsx",
     "lint:fix": "eslint --config eslint.config.ts . --ext .ts,.tsx --fix",
     "build": "tsc -p tsconfig.json",
-    "build:firefox": "npm run build && rm -f ./x-user-note.xpi && zip -r ./x-user-note.xpi settings.html dist/content.js dist/options.js manifest.json img/128.png"
+    "build:firefox": "bash ./build-firefox.sh",
+    "build:chrome": "bash ./build-chrome.sh"
   },
   "devDependencies": {
     "@eslint/js": "^9.26.0",
