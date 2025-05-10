@@ -11,7 +11,14 @@ document.addEventListener('DOMContentLoaded', function () {
   const importFile = document.getElementById(
     'importFile'
   ) as HTMLInputElement | null;
-  const githubButton = document.getElementById('githubButton');
+  const notesContainer = document.getElementById('notes-container');
+
+  // Interface for user note data
+  interface UserNote {
+    username: string; // With @ prefix
+    content: string;
+    key: string;
+  }
 
   // Helper function to get backup data as a JSON string.
   function getBackupData(callback: (dataStr: string) => void) {
@@ -25,7 +32,7 @@ document.addEventListener('DOMContentLoaded', function () {
       }
       const data: Record<string, unknown> = {};
       for (const key in items) {
-        if (key.startsWith('muteBlockEvents-')) {
+        if (key.startsWith('muteBlockNotes-')) {
           data[key] = items[key];
         }
       }
@@ -52,7 +59,12 @@ document.addEventListener('DOMContentLoaded', function () {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'muteBlockData.json';
+      
+      // Create a timestamp for the filename
+      const now = new Date();
+      const timestamp = now.toISOString().split('T')[0]; // YYYY-MM-DD format
+      
+      a.download = `x-user-notes-backup-${timestamp}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -82,7 +94,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const parsedData = JSON.parse(result) as Record<string, unknown>;
         const dataToImport: Record<string, unknown> = parsedData;
 
-        // Clear existing muteBlockEvents- data before importing
+        // Clear existing data before importing
         chrome.storage.sync.get(null, function (allItems) {
           if (chrome.runtime.lastError) {
             alert(
@@ -93,7 +105,7 @@ document.addEventListener('DOMContentLoaded', function () {
           }
 
           const keysToRemove = Object.keys(allItems).filter((key) =>
-            key.startsWith('muteBlockEvents-')
+            key.startsWith('muteBlockNotes-')
           );
 
           if (keysToRemove.length > 0) {
@@ -115,6 +127,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 } else {
                   alert('Import successful! Data replaced.');
                   populateBackupArea();
+                  loadAllUserNotes(); // Refresh the notes display
                 }
               });
             });
@@ -129,6 +142,7 @@ document.addEventListener('DOMContentLoaded', function () {
               } else {
                 alert('Import successful! Data added.');
                 populateBackupArea();
+                loadAllUserNotes(); // Refresh the notes display
               }
             });
           }
@@ -140,17 +154,281 @@ document.addEventListener('DOMContentLoaded', function () {
     reader.readAsText(file);
   });
 
+  // Function to load all user notes from storage
+  function loadAllUserNotes() {
+    if (!notesContainer) return;
+    
+    // Show loading indicator
+    notesContainer.innerHTML = '<div class="loading-indicator">Loading your notes...</div>';
+    
+    chrome.storage.sync.get(null, function(items) {
+      if (chrome.runtime.lastError) {
+        notesContainer.innerHTML = '<div class="empty-state">Error loading notes: ' + 
+          (chrome.runtime.lastError.message ?? 'Unknown error') + '</div>';
+        return;
+      }
+      
+      // Extract notes with the 'muteBlockNotes-' prefix
+      const userNotes: UserNote[] = [];
+      for (const key in items) {
+        if (key.startsWith('muteBlockNotes-')) {
+          const username = key.replace('muteBlockNotes-', '');
+          const content = items[key] as string;
+          if (content && typeof content === 'string') {
+            userNotes.push({
+              username,
+              content,
+              key
+            });
+          }
+        }
+      }
+      
+      // Sort notes alphabetically by username
+      userNotes.sort((a, b) => a.username.localeCompare(b.username));
+      
+      // Check if there are any notes
+      if (userNotes.length === 0) {
+        notesContainer.innerHTML = '<div class="empty-state">You don\'t have any notes yet. Notes will appear here when you mute or block users on X.</div>';
+        return;
+      }
+      
+      // Clear the container
+      notesContainer.innerHTML = '';
+      
+      // Create UI for each note
+      userNotes.forEach(note => {
+        const noteElement = createNoteElement(note);
+        notesContainer.appendChild(noteElement);
+      });
+    });
+  }
+  
+  // Function to create a note element with avatar
+  function createNoteElement(note: UserNote): HTMLElement {
+    const noteDiv = document.createElement('div');
+    noteDiv.className = 'user-note';
+    noteDiv.setAttribute('data-username', note.username);
+    
+    // Add avatar component
+    const avatarDiv = createAvatarElement(note.username);
+    noteDiv.appendChild(avatarDiv);
+    
+    // Add content component
+    const contentDiv = createContentElement(note);
+    noteDiv.appendChild(contentDiv);
+    
+    return noteDiv;
+  }
+  
+  // Function to create avatar element
+  function createAvatarElement(username: string): HTMLElement {
+    const avatarDiv = document.createElement('div');
+    avatarDiv.className = 'user-avatar';
+    
+    // Get Twitter avatar (handle both @ prefixed and non-prefixed usernames)
+    const cleanUsername = username.replace(/^@/, '');
+    const avatarImg = document.createElement('img');
+    avatarImg.alt = username;
+    // Use Twitter's API to get avatar
+    avatarImg.src = `https://unavatar.io/twitter/${cleanUsername}`;
+    avatarImg.onerror = function() {
+      // Fallback if Twitter avatar can't be loaded
+      avatarImg.src = 'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png';
+    };
+    avatarDiv.appendChild(avatarImg);
+    
+    return avatarDiv;
+  }
+  
+  // Function to create the content element (header + textarea)
+  function createContentElement(note: UserNote): HTMLElement {
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'user-content';
+    
+    // Create header with username and actions
+    const headerDiv = createHeaderElement(note.username);
+    contentDiv.appendChild(headerDiv);
+    
+    // Get references to elements needed for event handlers
+    const usernameSpan = headerDiv.querySelector('.username') as HTMLElement;
+    const saveButton = headerDiv.querySelector('.save-note') as HTMLButtonElement;
+    const deleteButton = headerDiv.querySelector('.delete-note') as HTMLButtonElement;
+    
+    // Create and set up textarea
+    const textarea = createNoteTextarea(note.content);
+    contentDiv.appendChild(textarea);
+    
+    // Set up event handlers
+    setupTextareaEvents(textarea, saveButton);
+    setupSaveButtonEvent(saveButton, textarea, note.key, usernameSpan);
+    setupDeleteButtonEvent(deleteButton, note.username, note.key);
+    
+    return contentDiv;
+  }
+  
+  // Function to create the header element with username and action buttons
+  function createHeaderElement(username: string): HTMLElement {
+    const headerDiv = document.createElement('div');
+    headerDiv.className = 'user-header';
+    
+    // Username with link to profile
+    const usernameSpan = document.createElement('div');
+    usernameSpan.className = 'username';
+    
+    const cleanUsername = username.replace(/^@/, '');
+    const usernameLink = document.createElement('a');
+    usernameLink.href = `https://x.com/${cleanUsername}`;
+    usernameLink.target = '_blank';
+    usernameLink.textContent = username;
+    usernameSpan.appendChild(usernameLink);
+    headerDiv.appendChild(usernameSpan);
+    
+    // Actions buttons
+    const actionsDiv = document.createElement('div');
+    actionsDiv.className = 'note-actions';
+    
+    const saveButton = document.createElement('button');
+    saveButton.className = 'save-note';
+    saveButton.textContent = 'Save';
+    saveButton.style.display = 'none'; // Initially hidden
+    
+    const deleteButton = document.createElement('button');
+    deleteButton.className = 'delete-note';
+    deleteButton.textContent = 'Delete';
+    
+    actionsDiv.appendChild(saveButton);
+    actionsDiv.appendChild(deleteButton);
+    headerDiv.appendChild(actionsDiv);
+    
+    return headerDiv;
+  }
+  
+  // Function to create and configure the textarea
+  function createNoteTextarea(content: string): HTMLTextAreaElement {
+    const textarea = document.createElement('textarea');
+    textarea.className = 'note-textarea';
+    textarea.value = content;
+    textarea.readOnly = true; // Initially read-only
+    textarea.style.overflowY = 'hidden'; // Hide vertical scrollbar
+    
+    return textarea;
+  }
+  
+  // Function to handle textarea resizing
+  function resizeTextarea(textarea: HTMLTextAreaElement): void {
+    textarea.style.height = 'auto';
+    textarea.style.height = textarea.scrollHeight + 'px';
+    
+    // Show scrollbar only if content exceeds max-height
+    const computedStyle = window.getComputedStyle(textarea);
+    const maxHeight = parseInt(computedStyle.maxHeight, 10);
+    
+    if (!isNaN(maxHeight) && textarea.scrollHeight > maxHeight) {
+      textarea.style.overflowY = 'auto'; // Show scrollbar when needed
+    } else {
+      textarea.style.overflowY = 'hidden'; // Hide scrollbar
+    }
+  }
+  
+  // Function to set up textarea event listeners
+  function setupTextareaEvents(textarea: HTMLTextAreaElement, saveButton: HTMLButtonElement): void {
+    // Add input event for auto-resizing
+    textarea.addEventListener('input', () => resizeTextarea(textarea));
+    
+    // Initial resize
+    setTimeout(() => resizeTextarea(textarea), 0);
+    
+    // Make textarea editable on click
+    textarea.addEventListener('click', function() {
+      if (textarea.readOnly) {
+        textarea.readOnly = false;
+        textarea.focus();
+        saveButton.style.display = 'block';
+        resizeTextarea(textarea);
+      }
+    });
+    
+    // Also resize on focus to ensure proper display
+    textarea.addEventListener('focus', () => resizeTextarea(textarea));
+  }
+  
+  // Function to handle the save button event
+  function setupSaveButtonEvent(
+    saveButton: HTMLButtonElement, 
+    textarea: HTMLTextAreaElement, 
+    storageKey: string, 
+    usernameSpan: HTMLElement
+  ): void {
+    saveButton.addEventListener('click', function() {
+      const newContent = textarea.value;
+      
+      // Save to storage
+      chrome.storage.sync.set({ [storageKey]: newContent }, function() {
+        if (chrome.runtime.lastError) {
+          alert('Error saving note: ' + (chrome.runtime.lastError.message ?? 'Unknown error'));
+          return;
+        }
+        
+        // Update UI
+        textarea.readOnly = true;
+        saveButton.style.display = 'none';
+        
+        // Show success message
+        showSaveConfirmation(usernameSpan);
+      });
+    });
+  }
+  
+  // Function to show save confirmation
+  function showSaveConfirmation(container: HTMLElement): void {
+    const successMessage = document.createElement('span');
+    successMessage.textContent = 'Saved!';
+    successMessage.style.color = '#28a745';
+    successMessage.style.marginLeft = '10px';
+    container.appendChild(successMessage);
+    
+    // Remove success message after 3 seconds
+    setTimeout(() => {
+      container.removeChild(successMessage);
+    }, 3000);
+  }
+  
+  // Function to handle the delete button event
+  function setupDeleteButtonEvent(
+    deleteButton: HTMLButtonElement, 
+    username: string, 
+    storageKey: string
+  ): void {
+    deleteButton.addEventListener('click', function() {
+      if (confirm(`Are you sure you want to delete the note for ${username}?`)) {
+        chrome.storage.sync.remove(storageKey, function() {
+          if (chrome.runtime.lastError) {
+            alert('Error deleting note: ' + (chrome.runtime.lastError.message ?? 'Unknown error'));
+            return;
+          }
+          
+          // Remove from UI - find the parent .user-note element
+          const userNoteElement = deleteButton.closest('.user-note');
+          if (userNoteElement) {
+            userNoteElement.remove();
+            
+            // Check if there are any notes left
+            if (notesContainer && notesContainer.querySelectorAll('.user-note').length === 0) {
+              notesContainer.innerHTML = '<div class="empty-state">You don\'t have any notes yet. Notes will appear here when you mute or block users on X.</div>';
+            }
+          } else {
+            console.error('Could not find .user-note element to remove');
+          }
+        });
+      }
+    });
+  }
+
+  // Populate the notes on page load
+  loadAllUserNotes();
+  
   // Populate the textarea on page load.
   populateBackupArea();
 
-  // Event listener for the GitHub button
-  if (githubButton) {
-    githubButton.addEventListener('click', () => {
-      window.open(
-        'https://github.com/klntsky/x-user-note',
-        '_blank',
-        'noopener,noreferrer'
-      );
-    });
-  }
 });

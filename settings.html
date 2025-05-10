@@ -119,6 +119,103 @@
       input[type='file'] {
         display: none;
       }
+
+      /* User Notes Styles */
+      #notes-container {
+        margin-top: 30px;
+      }
+      .user-note {
+        display: flex;
+        margin-bottom: 20px;
+        border: 1px solid #eaeaea;
+        border-radius: 10px;
+        padding: 15px;
+        transition: box-shadow 0.3s ease;
+      }
+      .user-note:hover {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+      .user-avatar {
+        flex: 0 0 50px;
+        margin-right: 15px;
+      }
+      .user-avatar img {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        object-fit: cover;
+      }
+      .user-content {
+        flex-grow: 1;
+      }
+      .user-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      .username {
+        font-weight: bold;
+        color: #0056b3;
+        font-size: 1.1rem;
+      }
+      .username a {
+        text-decoration: none;
+        color: inherit;
+      }
+      .username a:hover {
+        text-decoration: underline;
+      }
+      .note-actions {
+        display: flex;
+        gap: 10px;
+      }
+      .note-actions button {
+        padding: 5px 10px;
+        margin: 0;
+        font-size: 0.9rem;
+        flex: initial;
+      }
+      .delete-note {
+        background-color: #dc3545;
+      }
+      .delete-note:hover {
+        background-color: #bd2130;
+      }
+      .save-note {
+        background-color: #28a745;
+      }
+      .save-note:hover {
+        background-color: #218838;
+      }
+      .note-textarea {
+        width: 100%;
+        min-height: 100px;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        font-family: inherit;
+        font-size: 1rem;
+        box-sizing: border-box;
+        resize: vertical;
+        margin-bottom: 10px;
+        resize: none;
+      }
+      .loading-indicator {
+        text-align: center;
+        padding: 20px;
+        font-style: italic;
+        color: #666;
+      }
+      .empty-state {
+        text-align: center;
+        padding: 30px;
+        color: #666;
+        font-style: italic;
+        border: 1px dashed #ccc;
+        border-radius: 10px;
+      }
+      
       /* Responsive adjustments */
       @media (max-width: 600px) {
         .container {
@@ -144,6 +241,24 @@
           margin-bottom: 10px;
           font-size: 0.95rem;
         }
+        .user-note {
+          flex-direction: column;
+        }
+        .user-avatar {
+          margin-bottom: 10px;
+          align-self: center;
+        }
+        .user-header {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+        .note-actions {
+          margin-top: 10px;
+          width: 100%;
+        }
+        .note-actions button {
+          flex: 1;
+        }
       }
     </style>
     <script src="dist/options.js" defer></script>
@@ -152,25 +267,24 @@
     <div class="container">
       <h1>X User Notes - Why Did I Mute?</h1>
 
-      <div class="controls-section">
-        <button id="exportButton">Download Backup File</button>
-        <button id="importButton">Load Backup File</button>
-        <input type="file" id="importFile" accept=".json" />
-        <button id="githubButton">View on Github</button>
-      </div>
-
       <p>
         A browser extension for X that helps you
         remember <em>why</em> you muted or blocked a user and allows you to keep
         private notes on user profiles, visible only to you.
       </p>
 
-      <h2>Why use this extension?</h2>
-      <p>
-        Have you ever come across a profile on x.com and thought, "Why did I
-        mute/block this person?" or wished you could jot down a private reminder
-        about a user? This extension solves that problem.
-      </p>
+      <h2>Backup & Restore</h2>
+      <div class="controls-section">
+        <button id="exportButton">Download Backup</button>
+        <button id="importButton">Load Backup</button>
+        <input type="file" id="importFile" accept=".json" />
+        <a href="https://github.com/klntsky/x-user-note" target="_blank" id="githubButton">View on Github</a>
+      </div>
+
+      <h2>Your Notes</h2>
+      <div id="notes-container">
+        <div class="loading-indicator">Loading your notes...</div>
+      </div>
 
       <h2>Who made this?</h2>
       <p><a href="https://x.com/klntsky/">@klntsky</a> + <a href="https://github.com/kapi9966/">@kapi9966</a></p>
