@@ -259,10 +259,18 @@
     const userNameElement = userNameContainerElement
       ? [
           ...userNameContainerElement.querySelectorAll<HTMLSpanElement>('span'),
-        ].pop()
+        ].map((span) => span.textContent?.trim())
+        .filter((text) => text?.startsWith('@'))
+        .pop()
       : undefined;
-    const username = userNameElement?.textContent?.trim() ?? '';
+
+    const username = userNameElement?.trim() ?? '';
     debugLog('Detected username (profile):', username);
+
+    if (!username) {
+      debugLog('No username found. Aborting.');
+      return;
+    }
 
     // Check if container exists.
     let existingContainer = document.getElementById('muteBlockInfoContainer');
