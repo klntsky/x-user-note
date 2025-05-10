@@ -1,1 +1,0 @@
-zip -r ./x-user-note.xpi settings.html dist/content.js dist/options.js manifest.json img/128.png

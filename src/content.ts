@@ -122,32 +122,32 @@
   }
 
   /**
-   * Saves an event string for a given username.
-   * Prepends the new event to the list of existing events.
-   * @param username The username associated with the event.
-   * @param eventText The event text to save.
+   * Saves a note for a given username.
+   * Prepends the new note to the existing notes.
+   * @param username The username associated with the note.
+   * @param noteText The note text to save.
    */
-  async function saveEvent(username: string, eventText: string) {
-    debugLog('saveEvent called for', username);
-    const key = 'muteBlockEvents-' + username;
-    const events = await getStoredData<string[]>(key, []);
-    debugLog('Existing events for', username, ...events);
-    events.unshift(eventText);
-    await setStoredData(key, events);
-    debugLog('New event saved for', username, eventText);
+  async function saveNote(username: string, noteText: string) {
+    debugLog('saveNote called for', username);
+    const key = 'muteBlockNotes-' + username;
+    const existingNote = await getStoredData<string>(key, '');
+    debugLog('Existing note for', username, existingNote);
+    const updatedNote = noteText + (existingNote ? '\n\n' + existingNote : '');
+    await setStoredData(key, updatedNote);
+    debugLog('New note saved for', username, noteText);
   }
 
   /**
-   * Loads all event strings for a given username.
-   * @param username The username whose events are to be loaded.
-   * @returns A promise that resolves with an array of event strings.
+   * Loads note string for a given username.
+   * @param username The username whose note is to be loaded.
+   * @returns A promise that resolves with the user's note string.
    */
-  async function loadEvents(username: string) {
-    debugLog('loadEvents called for', username);
-    const key = 'muteBlockEvents-' + username;
-    const events = await getStoredData<string[]>(key, []);
-    debugLog('Loaded events for', username, ...events);
-    return events;
+  async function loadNote(username: string) {
+    debugLog('loadNote called for', username);
+    const key = 'muteBlockNotes-' + username;
+    const note = await getStoredData<string>(key, '');
+    debugLog('Loaded note for', username, note);
+    return note;
   }
 
   // --- Timestamp helper ---
@@ -170,29 +170,44 @@
   }
 
   // --- Auto-resize textarea ---
-  // Expands the textarea to fit its content. If more than one line, adds one extra row.
   /**
    * Automatically resizes a textarea element to fit its content.
    * Adds a small padding if the content has more than one line.
-   * Ensures a minimum height for the textarea.
+   * Respects the min-height and max-height CSS properties of the element.
+   * Shows scrollbars when content exceeds max-height.
    * @param textarea The textarea element to resize.
    */
   function autoResizeTextarea(textarea: HTMLTextAreaElement) {
     debugLog('autoResizeTextarea called for element:', textarea.tagName);
+    // Reset height to auto so we can measure the scrollHeight correctly
     textarea.style.height = 'auto';
+    
+    // Get the computed style to check for max-height
+    const computedStyle = window.getComputedStyle(textarea);
+    const maxHeight = parseInt(computedStyle.maxHeight, 10);
+    
+    // Calculate the new height
     let newHeight = textarea.scrollHeight;
     const contentLines = textarea.value.split('\n').length;
-    // const lineHeight =
-    //   parseFloat(window.getComputedStyle(textarea).lineHeight) || 20;
     if (contentLines > 1) newHeight += 5;
-    if (newHeight < 20) newHeight = 20;
+    
+    // If newHeight exceeds maxHeight, set to maxHeight and ensure scrollbar appears
+    if (!isNaN(maxHeight) && newHeight > maxHeight) {
+      newHeight = maxHeight;
+      textarea.style.overflowY = 'auto';
+    } else {
+      // Only hide vertical scrollbar when not at max height
+      textarea.style.overflowY = 'hidden';
+    }
+    
+    // Set the new height
     textarea.style.height = `${String(newHeight)}px`;
   }
 
   // --- Profile textarea functions ---
   /**
    * Updates the content of the profile textarea for a given username.
-   * Loads events for the user and sets them as the textarea value.
+   * Loads note for the user and sets it as the textarea value.
    * @param username The username whose profile textarea needs to be updated.
    */
   async function updateTextareaForProfile(username: string) {
@@ -204,23 +219,21 @@
       );
       return;
     }
-    const events = await loadEvents(username);
-    ta.value = events.join('\n\n');
+    const note = await loadNote(username);
+    ta.value = note;
     autoResizeTextarea(ta);
     debugLog('Profile textarea updated for', username);
   }
 
   /**
    * Saves the contents of a textarea associated with a username.
-   * Splits the value by double newlines and filters out empty strings.
    * @param username The username associated with the textarea.
    * @param value The new content of the textarea.
    */
   async function saveTextareaContents(username: string, value: string) {
     debugLog('saveTextareaContents called for', username);
-    const events = value.split('\n\n').filter((s: string) => s.trim() !== '');
-    await setStoredData('muteBlockEvents-' + username, events);
-    debugLog('Profile textarea contents saved for', username, ...events);
+    await setStoredData('muteBlockNotes-' + username, value);
+    debugLog('Profile textarea contents saved for', username, value);
   }
 
   // Insert the profile textarea under the user description.
@@ -277,8 +290,11 @@
     ta.style.borderRadius = '10px';
     ta.style.padding = '3px';
     ta.style.resize = 'none';
+    ta.style.border = '1px solid #ccc';
     ta.style.lineHeight = '1.25';
-    ta.style.backgroundColor = 'transparent';
+    ta.style.minHeight = '20px';
+    ta.style.maxHeight = '500px';
+    ta.style.overflowY = 'auto';
     ta.rows = 1;
     ta.placeholder = 'Your notes for ' + username + ' (visible only to you)';
     // Save content on every input event.
@@ -298,8 +314,8 @@
       debugLog('Profile textarea focus event triggered. Expanding fully.');
       autoResizeTextarea(ta);
     });
-    void loadEvents(username).then((events) => {
-      ta.value = events.join('\n\n');
+    void loadNote(username).then((note) => {
+      ta.value = note;
       autoResizeTextarea(ta);
     });
     container.appendChild(ta);
@@ -483,7 +499,7 @@
 
   /**
    * Processes the mute or block action.
-   * Saves the event and updates the UI if necessary.
+   * Saves the note and updates the UI if necessary.
    * @param buttonText The text content of the button.
    * @param tweetUrl The URL of the tweet.
    * @param tweetText The text content of the tweet.
@@ -506,8 +522,8 @@
     const timestamp = getTimestamp();
     const action = buttonText.includes('Mute') ? 'Muted' : 'Blocked';
     const logEntry = `${action} on ${timestamp}. Reason:\n${tweetUrl}\n${tweetText}`;
-    await saveEvent(username, logEntry);
-    debugLog('Mute/Block event saved for', username, 'Log entry:', logEntry);
+    await saveNote(username, logEntry);
+    debugLog('Mute/Block note saved for', username, 'Log entry:', logEntry);
 
     const pathParts = window.location.pathname.split('/');
     if (pathParts.length >= 2 && '@' + pathParts[1] === username) {
@@ -578,21 +594,21 @@
     }
     buttonElement.setAttribute('data-mute-listener-attached', 'true');
 
-    buttonElement.addEventListener('mouseover', (_e: MouseEvent) => {
+    buttonElement.addEventListener('mouseover', () => {
       handleMuteBlockButtonMouseOver(
         buttonElement as HTMLElement & {
           _highlightedTweet?: HTMLElement | null;
         }
       );
     });
-    buttonElement.addEventListener('mouseout', (_e: MouseEvent) => {
+    buttonElement.addEventListener('mouseout', () => {
       handleMuteBlockButtonMouseOut(
         buttonElement as HTMLElement & {
           _highlightedTweet?: HTMLElement | null;
         }
       );
     });
-    buttonElement.addEventListener('click', (_e: MouseEvent) => {
+    buttonElement.addEventListener('click', () => {
       void handleMuteBlockButtonClick(buttonElement);
     });
   }
@@ -698,10 +714,12 @@
     ta.style.paddingLeft = '1em';
     ta.style.paddingRight = '1em';
     ta.style.backgroundColor = 'transparent';
+    ta.style.border = '1px solid #ccc';
     ta.rows = 1;
     ta.placeholder = 'Your notes for ' + username + ' (visible only to you)';
-    ta.style.height = '50px';
-    ta.style.overflow = 'hidden';
+    ta.style.minHeight = '55px';
+    ta.style.maxHeight = '140px';
+    ta.style.overflowY = 'auto';
 
     // Handler to prevent the hovercard from closing when the textarea is focused
     const preventHovercardCloseHandler = (event: Event) => {
@@ -720,6 +738,7 @@
         preventHovercardCloseHandler,
         true
       ); // Use capture phase
+      autoResizeTextarea(ta);
     });
 
     ta.addEventListener('blur', () => {
@@ -734,6 +753,7 @@
     });
 
     ta.addEventListener('input', function () {
+      autoResizeTextarea(ta);
       void saveTextareaContents(username, ta.value);
       if (debounceTimers[username]) {
         clearTimeout(debounceTimers[username]);
@@ -744,8 +764,9 @@
       }, 300);
     });
 
-    void loadEvents(username).then((events) => {
-      ta.value = events.join('\n\n');
+    void loadNote(username).then((note) => {
+      ta.value = note;
+      autoResizeTextarea(ta);
     });
 
     registerTextarea(username, ta);

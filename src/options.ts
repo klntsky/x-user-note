@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', function () {
     importFile?.click();
   });
   importFile?.addEventListener('change', function () {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+     
     const file = importFile?.files?.[0];
     if (!file) return;
     const reader = new FileReader();
