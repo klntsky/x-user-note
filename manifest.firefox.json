@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "X User Notes - Why Did I Mute?",
+  "version": "1.0",
+  "icons": {
+    "128": "img/128.png"
+  },
+  "description": "Add private notes to X user profiles. Track why you muted or blocked someone.",
+  "permissions": ["storage"],
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvdAsaB2vMXUrvezOz+g78VTUXagfQIP0Bzv64rUOetk/KVXbSdUUh6HNSt3kvjaiPzQj679bv7m4swe6Q42cGibpRwdmC0p+gqwejTCyfGDaFCmG+t2dCCJeKYPe65T5bd9VA7Wj160eeR/nj3YPua70memfWoQH8LEDQlQ0KUv4MVYOXyo1wwV3JkzaKuqVamjV84ZBJImfM+Ve4qi4MYBC2IQAkk6v2kZAY0ukZgeOr93eABMTZyvRvsi/AB/ndIxWSMUTvJYTBavF6uSJu+y9S+a7vFBPnNsDpGUneDP/DB8DEYFnK56JKRuwHuV3PPClTN0ep3xF5kcMj8xp5wIDAQAB",
+  "host_permissions": ["https://twitter.com/*", "https://x.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://twitter.com/*", "https://x.com/*"],
+      "js": ["dist/content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "background": {
+    "scripts": ["dist/background.js"]
+  },
+  "action": {
+    "default_icon": {
+      "128": "img/128.png"
+    },
+    "default_title": "X User Notes - Settings"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "{a69a6479-ac77-468b-858b-69f05ccbc433}",
+      "strict_min_version": "58.0"
+    }
+  },
+  "options_page": "settings.html"
+} 
