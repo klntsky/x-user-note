@@ -90,28 +90,28 @@
         margin-bottom: 30px;
       }
       .title-icon {
-        height: 2.2rem; /* Match the title font size */
+        height: 3rem; /* Match the title font size */
         width: auto; /* Maintain aspect ratio */
         border-radius: 4px;
         vertical-align: middle;
         margin-right: 10px;
       }
       h2 {
-        font-size: 1.8rem; /* Was 1.8em */
+        font-size: 1.8rem;
         margin-top: 30px;
         margin-bottom: 15px;
         border-bottom: 1px solid var(--border-color);
         padding-bottom: 5px;
       }
       h3 {
-        font-size: 1.5rem; /* Was 1.5em */
+        font-size: 1.5rem;
         margin-top: 25px;
         margin-bottom: 10px;
       }
       p,
       li {
-        font-size: 1.2rem; /* Was 1.2em, effectively 1.2 * parent. Here, 1.2 * root */
-        line-height: 1.75; /* Was 1.75 */
+        font-size: 1.2rem;
+        line-height: 1.75;
         color: var(--secondary-text-color);
       }
       ul {
@@ -325,21 +325,16 @@
   </head>
   <body>
     <div class="container">
-      <h1>X User Notes - Why Did I Mute?</h1>
-
-      <img src="img/128.png" alt="X User Notes Icon" class="title-icon" />
-
-      <a
-        href="https://github.com/klntsky/x-user-note"
-        target="_blank"
-        id="githubButton"
-        >View on GitHub</a
-      >
+      <h1>
+        <img src="img/128.png" alt="X User Notes Icon" class="title-icon" />
+        X User Notes - Why Did I Mute?
+      </h1>
 
       <p>
         A browser extension for X that helps you remember <em>why</em> you muted
-        or blocked a profile and allows you to keep private notes on user
-        profiles, visible only to you.
+        or blocked someone, and allows you to keep private notes on users.
+
+        <a href="https://github.com/klntsky/x-user-note" target="_blank" id="githubButton">View on GitHub</a>
       </p>
 
       <div class="controls-section">
@@ -352,6 +347,11 @@
       <div id="notes-container">
         <div class="loading-indicator">Loading your notes...</div>
       </div>
+      
+      <h2>Who made this?</h2>
+      <p>
+        <a href="https://x.com/klntsky/">@klntsky</a>
+      </p>
     </div>
   </body>
 </html>
