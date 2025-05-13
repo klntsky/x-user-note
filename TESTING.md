@@ -34,3 +34,19 @@
 - **Expected Outcome:** A file download is triggered, and the backup data is saved in the file.
 - **Scenario:** Modify the backup file externally and click the "Load backup from file" button.
 - **Expected Outcome:** The backup textarea updates to reflect the imported backup data.
+
+## 6. Navigation and Page Reload After Mute/Block Actions
+
+### After Mute
+
+- **Scenario:** Mute a user on a tweet, then navigate to a different profile page and back to the muted user's profile page.
+- **Expected Outcome:** The note associated with the muted user should persist and be visible on their profile and hover card.
+- **Scenario:** Mute a user on a tweet, then reload the current page (e.g., the timeline or the user's profile).
+- **Expected Outcome:** The note associated with the muted user should persist and be visible.
+
+### After Block
+
+- **Scenario:** Block a user on a tweet, then navigate to a different profile page and back to the (now inaccessible) blocked user's profile page.
+- **Expected Outcome:** The note associated with the blocked user should persist internally, even if the profile page is not fully accessible. If a hover card can still be triggered (e.g., on a mention), the note should be visible there.
+- **Scenario:** Block a user on a tweet, then reload the current page.
+- **Expected Outcome:** The note associated with the blocked user should persist. Verify its presence if accessible (e.g., through hover cards on mentions if tweets are still visible, or by checking extension storage if direct UI verification is not possible).
