@@ -3,19 +3,62 @@
   <head>
     <meta charset="UTF-8" />
     <title>Settings: X User Notes - Why Did I Mute?</title>
-    <link rel="icon" href="img/128.png" type="image/png">
+    <link rel="icon" href="img/128.png" type="image/png" />
     <style>
       html {
         font-size: 100%; /* Establishes base for rem units, typically 16px */
       }
+
+      /* Light theme (default) variables */
+      :root {
+        --background-color: #f0f2f5;
+        --card-background: #ffffff;
+        --text-color: #1c1e21;
+        --secondary-text-color: #333;
+        --header-color: #0056b3;
+        --border-color: #eaeaea;
+        --code-background: #f8f8f8;
+        --button-background: #007bff;
+        --button-hover-background: #0056b3;
+        --shadow-color: rgba(0, 0, 0, 0.1);
+        --delete-button-background: #dc3545;
+        --delete-button-hover: #bd2130;
+        --save-button-background: #28a745;
+        --save-button-hover: #218838;
+        --empty-state-color: #666;
+        --empty-state-border: #ccc;
+      }
+
+      /* Dark theme variables */
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --background-color: #121212;
+          --card-background: #1e1e1e;
+          --text-color: #e4e6eb;
+          --secondary-text-color: #b0b3b8;
+          --header-color: #4da3ff;
+          --border-color: #2c2c2c;
+          --code-background: #2d2d2d;
+          --button-background: #0078d7;
+          --button-hover-background: #106ebe;
+          --shadow-color: rgba(0, 0, 0, 0.3);
+          --delete-button-background: #d32f2f;
+          --delete-button-hover: #b71c1c;
+          --save-button-background: #2e7d32;
+          --save-button-hover: #1b5e20;
+          --empty-state-color: #909090;
+          --empty-state-border: #444;
+        }
+      }
+
       body {
         font-family:
           -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica,
           Arial, sans-serif;
         margin: 0;
         padding: 0;
-        background-color: #f0f2f5;
-        color: #1c1e21;
+        background-color: var(--background-color);
+        color: var(--text-color);
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -24,12 +67,12 @@
         line-height: 1.6; /* Default line height for body */
       }
       .container {
-        background-color: #ffffff;
+        background-color: var(--card-background);
         padding: 30px 40px;
         border-radius: 8px;
         box-shadow:
-          0 2px 4px rgba(0, 0, 0, 0.1),
-          0 8px 16px rgba(0, 0, 0, 0.1);
+          0 2px 4px var(--shadow-color),
+          0 8px 16px var(--shadow-color);
         margin: 20px;
         width: 100%;
         max-width: 800px;
@@ -38,12 +81,12 @@
       h1,
       h2,
       h3 {
-        color: #0056b3; /* A nice blue for headers */
+        color: var(--header-color);
         line-height: 1.3;
       }
       h1 {
         font-size: 2.2rem; /* Was 2.2em */
-        text-align: center;
+        text-align: left;
         margin-bottom: 30px;
       }
       .title-icon {
@@ -57,7 +100,7 @@
         font-size: 1.8rem; /* Was 1.8em */
         margin-top: 30px;
         margin-bottom: 15px;
-        border-bottom: 1px solid #eaeaea;
+        border-bottom: 1px solid var(--border-color);
         padding-bottom: 5px;
       }
       h3 {
@@ -69,7 +112,7 @@
       li {
         font-size: 1.2rem; /* Was 1.2em, effectively 1.2 * parent. Here, 1.2 * root */
         line-height: 1.75; /* Was 1.75 */
-        color: #333;
+        color: var(--secondary-text-color);
       }
       ul {
         padding-left: 20px;
@@ -79,11 +122,11 @@
         margin-bottom: 0.5rem;
       }
       strong {
-        color: #0056b3;
+        color: var(--header-color);
         font-weight: 600;
       }
       code {
-        background-color: #f8f8f8;
+        background-color: var(--code-background);
         padding: 0.2em 0.4em;
         margin: 0;
         font-size: 0.9rem; /* Relative to root */
@@ -91,6 +134,13 @@
         font-family:
           'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier,
           monospace;
+      }
+      a {
+        color: var(--header-color);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
       }
       .controls-section {
         display: flex; /* Arrange buttons in a row */
@@ -105,7 +155,7 @@
         font-family:
           -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica,
           Arial, sans-serif;
-        background-color: #007bff;
+        background-color: var(--button-background);
         color: white;
         border: none;
         padding: 12px 20px;
@@ -122,7 +172,7 @@
         min-width: 0; /* Important for flex items to shrink properly if needed */
       }
       button:hover {
-        background-color: #0056b3;
+        background-color: var(--button-hover-background);
       }
       input[type='file'] {
         display: none;
@@ -135,13 +185,13 @@
       .user-note {
         display: flex;
         margin-bottom: 20px;
-        border: 1px solid #eaeaea;
+        border: 1px solid var(--border-color);
         border-radius: 10px;
         padding: 15px;
         transition: box-shadow 0.3s ease;
       }
       .user-note:hover {
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 2px 8px var(--shadow-color);
       }
       .user-avatar {
         flex: 0 0 50px;
@@ -164,7 +214,7 @@
       }
       .username {
         font-weight: bold;
-        color: #0056b3;
+        color: var(--header-color);
         font-size: 1.1rem;
       }
       .username a {
@@ -185,22 +235,22 @@
         flex: initial;
       }
       .delete-note {
-        background-color: #dc3545;
+        background-color: var(--delete-button-background);
       }
       .delete-note:hover {
-        background-color: #bd2130;
+        background-color: var(--delete-button-hover);
       }
       .save-note {
-        background-color: #28a745;
+        background-color: var(--save-button-background);
       }
       .save-note:hover {
-        background-color: #218838;
+        background-color: var(--save-button-hover);
       }
       .note-textarea {
         width: 100%;
         min-height: 100px;
         padding: 10px;
-        border: 1px solid #ddd;
+        border: 1px solid var(--border-color);
         border-radius: 5px;
         font-family: inherit;
         font-size: 1rem;
@@ -208,22 +258,24 @@
         resize: vertical;
         margin-bottom: 10px;
         resize: none;
+        background-color: var(--card-background);
+        color: var(--text-color);
       }
       .loading-indicator {
         text-align: center;
         padding: 20px;
         font-style: italic;
-        color: #666;
+        color: var(--empty-state-color);
       }
       .empty-state {
         text-align: center;
         padding: 30px;
-        color: #666;
+        color: var(--empty-state-color);
         font-style: italic;
-        border: 1px dashed #ccc;
+        border: 1px dashed var(--empty-state-border);
         border-radius: 10px;
       }
-      
+
       /* Responsive adjustments */
       @media (max-width: 600px) {
         .container {
@@ -273,32 +325,33 @@
   </head>
   <body>
     <div class="container">
-      <h1>
-        <img src="img/128.png" alt="X User Notes Icon" class="title-icon">
-        X User Notes - Why Did I Mute?
-      </h1>
+      <h1>X User Notes - Why Did I Mute?</h1>
+
+      <img src="img/128.png" alt="X User Notes Icon" class="title-icon" />
+
+      <a
+        href="https://github.com/klntsky/x-user-note"
+        target="_blank"
+        id="githubButton"
+        >View on GitHub</a
+      >
 
       <p>
-        A browser extension for X that helps you
-        remember <em>why</em> you muted or blocked a user and allows you to keep
-        private notes on user profiles, visible only to you.
+        A browser extension for X that helps you remember <em>why</em> you muted
+        or blocked a profile and allows you to keep private notes on user
+        profiles, visible only to you.
       </p>
 
-      <h2>Backup & Restore</h2>
       <div class="controls-section">
-        <button id="exportButton">Download Backup</button>
-        <button id="importButton">Load Backup</button>
+        <button id="exportButton">Export Backup File</button>
+        <button id="importButton">Import Backup File</button>
         <input type="file" id="importFile" accept=".json" />
-        <a href="https://github.com/klntsky/x-user-note" target="_blank" id="githubButton">View on Github</a>
       </div>
 
       <h2>Your Notes</h2>
       <div id="notes-container">
         <div class="loading-indicator">Loading your notes...</div>
       </div>
-
-      <h2>Who made this?</h2>
-      <p><a href="https://x.com/klntsky/">@klntsky</a> + <a href="https://github.com/kapi9966/">@kapi9966</a></p>
     </div>
   </body>
 </html>
