@@ -1,6 +1,7 @@
 (() => {
   const ENABLE_HIGHLIGHT = false;
   const DEBUG_LOG = false;
+  const USER_PROFILE_REGEX = /^\/[A-Za-z0-9_]{1,15}\/?$/;
 
   /**
    * Logs messages to the console if DEBUG_LOG is true.
@@ -21,9 +22,9 @@
    * @param username The username string to normalize.
    * @returns The normalized username.
    */
-  // function normalizeUsername(username: string): string {
-  //   return username.replace(/^@/, '');
-  // }
+  function normalizeUsername(username: string): string {
+    return username.replace(/^@/, '');
+  }
 
   // --- Global tracking for textareas ---
   const trackedTextareas = new Map<string, HTMLTextAreaElement[]>();
@@ -181,16 +182,16 @@
     debugLog('autoResizeTextarea called for element:', textarea.tagName);
     // Reset height to auto so we can measure the scrollHeight correctly
     textarea.style.height = 'auto';
-    
+
     // Get the computed style to check for max-height
     const computedStyle = window.getComputedStyle(textarea);
     const maxHeight = parseInt(computedStyle.maxHeight, 10);
-    
+
     // Calculate the new height
     let newHeight = textarea.scrollHeight;
     const contentLines = textarea.value.split('\n').length;
     if (contentLines > 1) newHeight += 5;
-    
+
     // If newHeight exceeds maxHeight, set to maxHeight and ensure scrollbar appears
     if (!isNaN(maxHeight) && newHeight > maxHeight) {
       newHeight = maxHeight;
@@ -199,7 +200,7 @@
       // Only hide vertical scrollbar when not at max height
       textarea.style.overflowY = 'hidden';
     }
-    
+
     // Set the new height
     textarea.style.height = `${String(newHeight)}px`;
   }
@@ -244,34 +245,28 @@
    */
   function addTextareaToProfile() {
     debugLog('addTextareaToProfile called.');
+    const userNameContainerElement = document.querySelector<HTMLElement>(
+      '[data-testid="UserName"]'
+    );
+    const userNameElement = userNameContainerElement
+      ? [...userNameContainerElement.querySelectorAll<HTMLSpanElement>('span')]
+          .map((span) => span.textContent?.trim())
+          .filter((text) => text?.startsWith('@'))
+          .pop()
+      : undefined;
+    const username = userNameElement?.trim() ?? '';
+    debugLog('Detected username (profile):', username);
+    if (!username) {
+      debugLog('No username found. Aborting.');
+      return;
+    }
     const profileAnchorElement = document.querySelector(
-      '[data-testid="UserJoinDate"]'
+      `[href="/${normalizeUsername(username)}/verified_followers"]`
     );
     if (!profileAnchorElement) {
       debugLog('profile anchor element not found. Aborting.');
       return;
     }
-
-    // actually contains human-readable name too
-    const userNameContainerElement = document.querySelector<HTMLElement>(
-      '[data-testid="UserName"]'
-    );
-    const userNameElement = userNameContainerElement
-      ? [
-          ...userNameContainerElement.querySelectorAll<HTMLSpanElement>('span'),
-        ].map((span) => span.textContent?.trim())
-        .filter((text) => text?.startsWith('@'))
-        .pop()
-      : undefined;
-
-    const username = userNameElement?.trim() ?? '';
-    debugLog('Detected username (profile):', username);
-
-    if (!username) {
-      debugLog('No username found. Aborting.');
-      return;
-    }
-
     // Check if container exists.
     let existingContainer = document.getElementById('muteBlockInfoContainer');
     if (existingContainer) {
@@ -329,8 +324,10 @@
     container.appendChild(ta);
     debugLog('Profile textarea created and populated.');
     registerTextarea(username, ta);
-    if (profileAnchorElement.parentElement) {
-      profileAnchorElement.parentElement.insertBefore(
+    const insertionContainer =
+      profileAnchorElement?.parentElement?.parentElement?.parentElement;
+    if (insertionContainer) {
+      insertionContainer.insertBefore(
         container,
         profileAnchorElement.nextSibling
       );
@@ -343,9 +340,8 @@
   }
 
   // Observe for profile page content dynamically loaded.
-
   const profileObserver = new MutationObserver(() => {
-    if (/^\/[^/]+\/?$/.test(window.location.pathname)) {
+    if (USER_PROFILE_REGEX.test(window.location.pathname)) {
       addTextareaToProfile();
     }
   });
@@ -529,7 +525,9 @@
     const username = '@' + usernameMatch[1];
     const timestamp = getTimestamp();
     const action = buttonText.includes('Mute') ? 'Muted' : 'Blocked';
-    const logEntry = `${action} on ${timestamp}. Reason:\n${tweetUrl}\n${tweetText}`;
+    const logEntry = tweetUrl
+      ? `${action} on ${timestamp}. Reason:\n${tweetUrl}\n${tweetText}`
+      : `${action} on ${timestamp}.`;
     await saveNote(username, logEntry);
     debugLog('Mute/Block note saved for', username, 'Log entry:', logEntry);
 
@@ -661,7 +659,7 @@
   debugLog('[DEBUG] Button observer set up.');
 
   // On initial load, if on a profile page, insert the profile textarea.
-  if (/^\/[^/]+\/?$/.test(window.location.pathname)) {
+  if (USER_PROFILE_REGEX.test(window.location.pathname)) {
     debugLog('On initial load: profile page detected.');
     addTextareaToProfile();
   }
@@ -735,6 +733,7 @@
         '[X Note addon] hovercard.mouseleave listener fired while textarea focused. Stopping propagation.'
       );
       event.stopPropagation();
+      event.stopImmediatePropagation();
     };
 
     ta.addEventListener('focus', () => {
@@ -782,16 +781,6 @@
   }
 
   /**
-   * Creates a container div for the notes textarea.
-   * @returns The container div element.
-   */
-  function createTextareaContainer(): HTMLDivElement {
-    const container = document.createElement('div');
-    container.className = 'hovercard-textfield';
-    return container;
-  }
-
-  /**
    * Adds a textarea to a user hover card for storing notes about the user.
    * Extracts the username from the hover card, creates a textarea,
    * loads existing notes, and sets up event listeners for saving and syncing.
@@ -815,7 +804,16 @@
     }
     debugLog('Detected username (hover card):', username);
 
-    const container = createTextareaContainer();
+    const anchorElement = hoverCard.querySelector(
+      `[href="/${normalizeUsername(username)}/verified_followers"]`
+    );
+    if (!anchorElement) {
+      debugLog('Anchor element not found. Aborting.');
+      return;
+    }
+
+    const container = document.createElement('div');
+    container.className = 'hovercard-textfield';
     const ta = createNotesTextarea(username, hoverCard);
     container.appendChild(ta);
 
