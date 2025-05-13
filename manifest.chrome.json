@@ -16,11 +16,14 @@
       "run_at": "document_end"
     }
   ],
-  "browser_specific_settings": {
-    "gecko": {
-      "id": "{a69a6479-ac77-468b-858b-69f05ccbc433}",
-      "strict_min_version": "58.0"
-    }
+  "background": {
+    "service_worker": "dist/background.js"
+  },
+  "action": {
+    "default_icon": {
+      "128": "img/128.png"
+    },
+    "default_title": "X User Notes - Settings"
   },
   "options_page": "settings.html"
-}
+} 

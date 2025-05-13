@@ -45,3 +45,5 @@ playwright.json
 
 # Build
 /dist
+
+manifest.json

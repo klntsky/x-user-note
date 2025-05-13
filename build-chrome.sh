@@ -11,9 +11,9 @@ KEY_FILE="key.pem"
 # List of files to include in the build, relative to project root
 FILES_TO_INCLUDE=(
   "settings.html"
-  "manifest.json"
   "dist/content.js"
   "dist/options.js"
+  "dist/background.js"
   "img/128.png"
 )
 
@@ -24,6 +24,8 @@ npm run build
 echo "Creating clean build directory at $BUILD_DIR"
 rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"
+
+cp manifest.chrome.json "$BUILD_DIR/manifest.json"
 
 # Copy the necessary files, preserving directory structure
 echo "Copying required files..."
@@ -60,6 +62,6 @@ if [ -f "./$TEMP_CRX_FILE" ]; then
 else
   echo "Error: CRX file not created"
   exit 1
-fi 
+fi
 
 rm -rf "$BUILD_DIR"
