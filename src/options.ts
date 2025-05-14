@@ -34,6 +34,40 @@ document.addEventListener('DOMContentLoaded', function () {
   ) as HTMLInputElement | null;
   const notesContainer = document.getElementById('notes-container');
 
+  // Helper function to set the state of the notes container
+  function setNotesContainerState(
+    state: 'loading' | 'error' | 'empty' | 'clear',
+    message?: string
+  ) {
+    if (!notesContainer) return;
+
+    // Clear previous content
+    while (notesContainer.firstChild) {
+      notesContainer.removeChild(notesContainer.firstChild);
+    }
+
+    if (state === 'loading') {
+      const loadingDiv = document.createElement('div');
+      loadingDiv.className = 'loading-indicator';
+      loadingDiv.textContent = message || 'Loading your notes...';
+      notesContainer.appendChild(loadingDiv);
+    } else if (state === 'error') {
+      const errorDiv = document.createElement('div');
+      errorDiv.className = 'empty-state'; // Assuming same class for styling
+      errorDiv.textContent =
+        'Error loading notes: ' + (message ?? 'Unknown error');
+      notesContainer.appendChild(errorDiv);
+    } else if (state === 'empty') {
+      const emptyDiv = document.createElement('div');
+      emptyDiv.className = 'empty-state';
+      emptyDiv.textContent =
+        message ||
+        "You don't have any notes yet. Notes will appear here when you mute or block users on X.";
+      notesContainer.appendChild(emptyDiv);
+    }
+    // 'clear' state is handled by the clearing logic at the beginning
+  }
+
   // Interface for user note data
   interface UserNote {
     username: string; // With @ prefix
@@ -179,15 +213,14 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!notesContainer) return;
 
     // Show loading indicator
-    notesContainer.innerHTML =
-      '<div class="loading-indicator">Loading your notes...</div>';
+    setNotesContainerState('loading');
 
     chrome.storage.sync.get(null, function (items) {
       if (chrome.runtime.lastError) {
-        notesContainer.innerHTML =
-          '<div class="empty-state">Error loading notes: ' +
-          (chrome.runtime.lastError.message ?? 'Unknown error') +
-          '</div>';
+        setNotesContainerState(
+          'error',
+          chrome.runtime.lastError.message ?? 'Unknown error'
+        );
         return;
       }
 
@@ -212,13 +245,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
       // Check if there are any notes
       if (userNotes.length === 0) {
-        notesContainer.innerHTML =
-          '<div class="empty-state">You don\'t have any notes yet. Notes will appear here when you mute or block users on X.</div>';
+        setNotesContainerState('empty');
         return;
       }
 
       // Clear the container
-      notesContainer.innerHTML = '';
+      setNotesContainerState('clear');
 
       // Create UI for each note
       userNotes.forEach((note) => {
@@ -460,8 +492,7 @@ document.addEventListener('DOMContentLoaded', function () {
               notesContainer &&
               notesContainer.querySelectorAll('.user-note').length === 0
             ) {
-              notesContainer.innerHTML =
-                '<div class="empty-state">You don\'t have any notes yet. Notes will appear here when you mute or block users on X.</div>';
+              setNotesContainerState('empty');
             }
           } else {
             console.error('Could not find .user-note element to remove');
