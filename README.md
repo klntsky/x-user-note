@@ -2,6 +2,8 @@
 
 A simple browser extension for x.com (formerly Twitter) that helps you remember _why_ you muted or blocked a user and allows you to keep private notes on user profiles, visible only to you.
 
+![demo](https://github.com/user-attachments/assets/55dcb025-b007-465c-9133-9b7c6c2ad55a)
+
 ## Why use this extension?
 
 Have you ever come across a profile on x.com and thought, "Why did I mute/block this person?" or wished you could jot down a private reminder about a user? This extension solves that problem.
