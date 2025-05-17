@@ -3,7 +3,7 @@ set -e
 
 # Configuration variables
 EXTENSION_NAME="x-user-note"
-XPI_FILE="${EXTENSION_NAME}.xpi"
+XPI_FILE="${EXTENSION_NAME}-firefox.xpi"
 
 # List of files to include in the build, relative to project root
 FILES_TO_INCLUDE=(

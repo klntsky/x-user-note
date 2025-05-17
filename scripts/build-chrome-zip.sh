@@ -4,9 +4,7 @@ set -e
 # Configuration variables
 EXTENSION_NAME="x-user-note"
 BUILD_DIR="${EXTENSION_NAME}-dist"
-CRX_FILE="${EXTENSION_NAME}.crx"
-TEMP_CRX_FILE="${EXTENSION_NAME}-dist.crx"
-KEY_FILE="key.pem"
+ZIP_FILE="${EXTENSION_NAME}-chrome.zip"
 
 # List of files to include in the build, relative to project root
 FILES_TO_INCLUDE=(
@@ -25,6 +23,7 @@ echo "Creating clean build directory at $BUILD_DIR"
 rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"
 
+# Copy the manifest file first to ensure it's at the root
 cp manifest.chrome.json "$BUILD_DIR/manifest.json"
 
 # Copy the necessary files, preserving directory structure
@@ -39,29 +38,16 @@ for file in "${FILES_TO_INCLUDE[@]}"; do
   echo "Copied $file"
 done
 
-# Pack the extension using chrome or chromium
-echo "Packing extension..."
-if command -v chromium &> /dev/null; then
-  BROWSER="chromium"
-elif command -v google-chrome &> /dev/null; then
-  BROWSER="google-chrome"
-else
-  echo "Error: Neither chromium nor google-chrome found"
-  exit 1
-fi
+# Create the zip file
+echo "Creating zip file..."
+cd "$BUILD_DIR"
+zip -r "../$ZIP_FILE" ./*
+cd ..
 
-echo "Using browser: $BROWSER"
+echo "Build successful! Created $ZIP_FILE"
 
-"$BROWSER" --pack-extension="$(pwd)/${EXTENSION_NAME}-dist" --pack-extension-key="$(pwd)/${KEY_FILE}"
-
-# Move the CRX file to the project directory
-if [ -f "./$TEMP_CRX_FILE" ]; then
-  echo "Moving CRX file to project directory..."
-  mv "./$TEMP_CRX_FILE" "./$CRX_FILE"
-  echo "Build successful! Created $CRX_FILE"
-else
-  echo "Error: CRX file not created"
-  exit 1
-fi
-
+# Clean up
+echo "Cleaning up build directory..."
 rm -rf "$BUILD_DIR"
+
+echo "ZIP file ready for Chrome Web Store submission" 
