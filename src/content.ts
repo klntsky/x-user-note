@@ -72,16 +72,29 @@
     if (!trackedTextareas.has(username)) return;
     const arr = trackedTextareas.get(username);
     if (!arr) return;
-    const toUpdate = arr.filter((ta: HTMLTextAreaElement) =>
-      document.contains(ta)
-    );
-    trackedTextareas.set(username, toUpdate);
-    toUpdate.forEach((ta: HTMLTextAreaElement) => {
-      if (ta.value !== newValue) {
-        ta.value = newValue;
-        autoResizeTextarea(ta);
+
+    const stillAttachedTextareas: HTMLTextAreaElement[] = [];
+    arr.forEach((ta: HTMLTextAreaElement) => {
+      if (document.contains(ta)) {
+        if (ta.value !== newValue) {
+          ta.value = newValue;
+          autoResizeTextarea(ta);
+        }
+        stillAttachedTextareas.push(ta); // Keep it if attached
       }
+      // If not contained in document, it's effectively pruned from the next set for this username
     });
+
+    if (stillAttachedTextareas.length > 0) {
+      trackedTextareas.set(username, stillAttachedTextareas);
+    } else {
+      // If no textareas remain attached for this user, remove the entry from the map
+      trackedTextareas.delete(username);
+      debugLog(
+        'Removed username from trackedTextareas as no instances remain:',
+        username
+      );
+    }
   }
 
   // --- Storage helper wrappers using chrome.storage.sync ---
@@ -339,14 +352,6 @@
     }
   }
 
-  // Observe for profile page content dynamically loaded.
-  const profileObserver = new MutationObserver(() => {
-    if (USER_PROFILE_REGEX.test(window.location.pathname)) {
-      addTextareaToProfile();
-    }
-  });
-  profileObserver.observe(document.body, { childList: true, subtree: true });
-
   // --- Find tweet container by tweet ID ---
   /**
    * Finds the tweet container element (article) by its status ID.
@@ -599,69 +604,25 @@
       return;
     }
     buttonElement.setAttribute('data-mute-listener-attached', 'true');
-
-    buttonElement.addEventListener('mouseover', () => {
-      handleMuteBlockButtonMouseOver(
-        buttonElement as HTMLElement & {
-          _highlightedTweet?: HTMLElement | null;
-        }
-      );
-    });
-    buttonElement.addEventListener('mouseout', () => {
-      handleMuteBlockButtonMouseOut(
-        buttonElement as HTMLElement & {
-          _highlightedTweet?: HTMLElement | null;
-        }
-      );
-    });
+    if (ENABLE_HIGHLIGHT) {
+      buttonElement.addEventListener('mouseover', () => {
+        handleMuteBlockButtonMouseOver(
+          buttonElement as HTMLElement & {
+            _highlightedTweet?: HTMLElement | null;
+          }
+        );
+      });
+      buttonElement.addEventListener('mouseout', () => {
+        handleMuteBlockButtonMouseOut(
+          buttonElement as HTMLElement & {
+            _highlightedTweet?: HTMLElement | null;
+          }
+        );
+      });
+    }
     buttonElement.addEventListener('click', () => {
       void handleMuteBlockButtonClick(buttonElement);
     });
-  }
-
-  // --- Observe new mute/block buttons ---
-  const buttonObserver = new MutationObserver(function (mutations) {
-    mutations.forEach(function (mutation) {
-      mutation.addedNodes.forEach(function (node) {
-        if (node instanceof Element) {
-          const elementNode = node;
-          if (
-            elementNode.getAttribute('role') === 'menuitem' &&
-            elementNode.textContent &&
-            (elementNode.textContent.includes('Mute') ||
-              elementNode.textContent.includes('Block'))
-          ) {
-            debugLog('Found new mute/block menuitem:', elementNode.tagName);
-            attachListenerToMuteBlockButton(elementNode as HTMLElement);
-          }
-          // Check if querySelectorAll exists before calling it
-          if (typeof elementNode.querySelectorAll === 'function') {
-            const muteButtons =
-              elementNode.querySelectorAll<HTMLElement>('[role="menuitem"]');
-            if (muteButtons.length > 0) {
-              muteButtons.forEach(function (btn) {
-                // btn is an Element here
-                if (
-                  btn.textContent &&
-                  (btn.textContent.includes('Mute') ||
-                    btn.textContent.includes('Block'))
-                ) {
-                  attachListenerToMuteBlockButton(btn);
-                }
-              });
-            }
-          }
-        }
-      });
-    });
-  });
-  buttonObserver.observe(document.body, { childList: true, subtree: true });
-  debugLog('[DEBUG] Button observer set up.');
-
-  // On initial load, if on a profile page, insert the profile textarea.
-  if (USER_PROFILE_REGEX.test(window.location.pathname)) {
-    debugLog('On initial load: profile page detected.');
-    addTextareaToProfile();
   }
 
   // --- Hover Card Text Field for User Hover ---
@@ -830,40 +791,90 @@
     }
   }
 
-  // Observe dynamic hover cards.
-  const hoverCardObserver = new MutationObserver((mutations) => {
+  // --- Consolidated Mutation Observer ---
+  const globalObserver = new MutationObserver((mutations) => {
+    let profileNeedsCheck = false;
+
     mutations.forEach((mutation) => {
       mutation.addedNodes.forEach((node) => {
-        if (node instanceof Element) {
-          const elementNode = node;
-          // Look for a hover card container.
-          if (
-            elementNode.hasAttribute('data-testid') &&
-            elementNode.getAttribute('data-testid') === 'HoverCard'
-          ) {
-            debugLog('HoverCard detected:', elementNode.tagName);
-            void addTextFieldToHoverCard(elementNode);
-          } else {
-            // Also check descendants.
-            // Check if querySelectorAll exists before calling it
-            if (typeof elementNode.querySelectorAll === 'function') {
-              const hoverCards = elementNode.querySelectorAll(
-                '[data-testid="HoverCard"]'
-              );
-              if (hoverCards.length > 0) {
-                hoverCards.forEach((hc: Element) => {
-                  // hc is an Element
-                  debugLog('HoverCard detected in subtree:', hc.tagName);
-                  void addTextFieldToHoverCard(hc);
-                });
-              }
+        if (!(node instanceof Element)) return;
+        const elementNode = node as Element;
+
+        // --- Logic from buttonObserver ---
+        if (
+          elementNode.getAttribute('role') === 'menuitem' &&
+          elementNode.textContent &&
+          (elementNode.textContent.includes('Mute') ||
+            elementNode.textContent.includes('Block'))
+        ) {
+          debugLog(
+            'Found new mute/block menuitem via combined observer:',
+            elementNode.tagName
+          );
+          attachListenerToMuteBlockButton(elementNode as HTMLElement);
+        }
+        // Check descendants for mute/block buttons
+        if (typeof elementNode.querySelectorAll === 'function') {
+          const muteButtons =
+            elementNode.querySelectorAll<HTMLElement>('[role="menuitem"]');
+          muteButtons.forEach(function (btn) {
+            if (
+              btn.textContent &&
+              (btn.textContent.includes('Mute') ||
+                btn.textContent.includes('Block'))
+            ) {
+              attachListenerToMuteBlockButton(btn);
             }
+          });
+        }
+
+        // --- Logic from hoverCardObserver ---
+        if (
+          elementNode.hasAttribute('data-testid') &&
+          elementNode.getAttribute('data-testid') === 'HoverCard'
+        ) {
+          debugLog(
+            'HoverCard detected via combined observer:',
+            elementNode.tagName
+          );
+          void addTextFieldToHoverCard(elementNode);
+        } else {
+          // Also check descendants for hover cards
+          if (typeof elementNode.querySelectorAll === 'function') {
+            const hoverCards = elementNode.querySelectorAll<Element>(
+              '[data-testid="HoverCard"]'
+            );
+            hoverCards.forEach((hc) => {
+              debugLog(
+                'HoverCard detected in subtree via combined observer:',
+                hc.tagName
+              );
+              void addTextFieldToHoverCard(hc);
+            });
           }
         }
       });
+      // If any childList mutation happened, it's worth re-checking profile state
+      if (mutation.type === 'childList') {
+        profileNeedsCheck = true;
+      }
     });
+
+    // --- Logic from profileObserver ---
+    if (
+      profileNeedsCheck &&
+      USER_PROFILE_REGEX.test(window.location.pathname)
+    ) {
+      addTextareaToProfile();
+    }
   });
 
-  hoverCardObserver.observe(document.body, { childList: true, subtree: true });
-  debugLog('Hover card observer set up.');
+  globalObserver.observe(document.body, { childList: true, subtree: true });
+  debugLog('[DEBUG] Combined observer set up.');
+
+  // On initial load, if on a profile page, insert the profile textarea.
+  if (USER_PROFILE_REGEX.test(window.location.pathname)) {
+    debugLog('On initial load: profile page detected.');
+    addTextareaToProfile();
+  }
 })();

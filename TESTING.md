@@ -29,11 +29,11 @@
 ## 5. Backup and Restore Functionality (Options Page)
 
 - **Scenario:** Open the extension’s settings page.
-- **Expected Outcome:** The backup textarea is populated with the current backup data.
-- **Scenario:** Click the "Download backup to file" button.
+- **Expected Outcome:** The notes are populated with the current backup data.
+- **Scenario:** Click the export button.
 - **Expected Outcome:** A file download is triggered, and the backup data is saved in the file.
-- **Scenario:** Modify the backup file externally and click the "Load backup from file" button.
-- **Expected Outcome:** The backup textarea updates to reflect the imported backup data.
+- **Scenario:** Modify the backup file externally and click the import button.
+- **Expected Outcome:** The notes update to reflect the imported backup data. Import should not delete any already existing profiles on options page.
 
 ## 6. Navigation and Page Reload After Mute/Block Actions
 
