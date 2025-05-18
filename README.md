@@ -1,5 +1,7 @@
 # X User Notes - Why Did I Mute?
 
+[![Mozilla Add-on Users](https://img.shields.io/amo/users/x-user-notes?logo=firefox&label=Install%20for%20Firefox)](https://addons.mozilla.org/en-US/firefox/addon/x-user-notes/) [![Chrome Web Store Users](https://img.shields.io/chrome-web-store/users/hhibhfpagddcfceopnakidhbcehjpbjm?logo=chrome&label=Install%20for%20Chrome)](https://chromewebstore.google.com/detail/x-user-notes-why-did-i-mu/hhibhfpagddcfceopnakidhbcehjpbjm)
+
 A simple browser extension for x.com (formerly Twitter) that helps you remember _why_ you muted or blocked a user and allows you to keep private notes on user profiles, visible only to you.
 
 ![demo](https://github.com/user-attachments/assets/55dcb025-b007-465c-9133-9b7c6c2ad55a)
