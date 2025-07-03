@@ -515,19 +515,15 @@
    */
   async function processMuteBlockAction(
     buttonText: string | null,
-    tweetUrl: string,
-    tweetText: string
+    username: string,
+    tweetUrl: string | null,
+    tweetText: string | null
   ) {
     if (!buttonText) {
       debugLog('Button text is null, cannot process action.');
       return;
     }
-    const usernameMatch = /@(\S+)/.exec(buttonText);
-    if (!usernameMatch) {
-      debugLog('Username not found in button text:', buttonText);
-      return;
-    }
-    const username = '@' + usernameMatch[1];
+    username = '@' + username;
     const timestamp = getTimestamp();
     const action = buttonText.includes('Mute') ? 'Muted' : 'Blocked';
     const logEntry = tweetUrl
@@ -551,6 +547,37 @@
     }
   }
 
+  function detectUsername(popupContainer: Element): string | void {
+    // try using engagement link
+    const engagementLink: HTMLAnchorElement | null =
+      popupContainer.querySelector('a[data-testid="tweetEngagements"]') ??
+      popupContainer.querySelector('a[href*="/status/"]');
+
+    let username = '';
+    if (engagementLink === null) {
+
+      // try using lists link
+      const listsLink: HTMLAnchorElement | null = popupContainer.querySelector('a[href$="/lists"]');
+      if (listsLink === null) {
+
+        // try using topics link
+        const topicsLink: HTMLAnchorElement | null = popupContainer.querySelector('a[href$="/topics"]');
+        if (topicsLink === null) {
+          debugLog('engagementLink not found, couldn\'t detect username');
+          return;
+        } else {
+          username = topicsLink.href.split('/')[3];
+        }
+      } else {
+        username = listsLink.href.split('/')[3];
+      }
+    } else {
+      username = engagementLink.href.split('/')[3];
+    };
+
+    return username;
+  }
+
   /**
    * Handles the click event for a mute/block button.
    * Extracts tweet details, processes the action, and logs the event.
@@ -565,12 +592,18 @@
       buttonElement.closest('[role="menu"]') ?? buttonElement;
     if (!(popupContainer instanceof Element)) return;
 
-    const engagementLink =
+    const username = detectUsername(popupContainer);
+    if (!username) {
+      debugLog('Username not found, cannot process action.');
+      return;
+    }
+
+    let tweetUrl = null;
+    let tweetText = null;
+
+    const engagementLink: HTMLAnchorElement | null =
       popupContainer.querySelector('a[data-testid="tweetEngagements"]') ??
       popupContainer.querySelector('a[href*="/status/"]');
-
-    let tweetUrl = '';
-    let tweetText = '';
 
     if (engagementLink instanceof HTMLAnchorElement) {
       const details = extractTweetDetailsFromButton(engagementLink);
@@ -582,8 +615,10 @@
         tweetUrl = engagementLink.href;
       }
     }
+
     await processMuteBlockAction(
       buttonElement.textContent,
+      username,
       tweetUrl,
       tweetText
     );
