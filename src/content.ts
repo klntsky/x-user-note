@@ -555,15 +555,15 @@
 
     let username = '';
     if (engagementLink === null) {
-
       // try using lists link
-      const listsLink: HTMLAnchorElement | null = popupContainer.querySelector('a[href$="/lists"]');
+      const listsLink: HTMLAnchorElement | null =
+        popupContainer.querySelector('a[href$="/lists"]');
       if (listsLink === null) {
-
         // try using topics link
-        const topicsLink: HTMLAnchorElement | null = popupContainer.querySelector('a[href$="/topics"]');
+        const topicsLink: HTMLAnchorElement | null =
+          popupContainer.querySelector('a[href$="/topics"]');
         if (topicsLink === null) {
-          debugLog('engagementLink not found, couldn\'t detect username');
+          debugLog("engagementLink not found, couldn't detect username");
           return;
         } else {
           username = topicsLink.href.split('/')[3];
@@ -573,14 +573,90 @@
       }
     } else {
       username = engagementLink.href.split('/')[3];
-    };
+    }
 
     return username;
   }
 
   /**
+   * Waits for the block confirmation dialog and attaches a click listener
+   * to the confirm button to save the note only after confirmation.
+   * @param username The username being blocked.
+   * @param tweetUrl The URL of the tweet (if applicable).
+   * @param tweetText The text content of the tweet (if applicable).
+   */
+  function waitForBlockConfirmation(
+    username: string,
+    tweetUrl: string | null,
+    tweetText: string | null
+  ) {
+    debugLog('Waiting for block confirmation dialog...');
+
+    // Set up a MutationObserver to watch for the confirmation button
+    const confirmationObserver = new MutationObserver((mutations, observer) => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (!(node instanceof Element)) continue;
+
+          // Look for the confirmation button in the added node or its descendants
+          const confirmButton = node.matches(
+            '[data-testid="confirmationSheetConfirm"]'
+          )
+            ? node
+            : node.querySelector('[data-testid="confirmationSheetConfirm"]');
+
+          if (confirmButton instanceof HTMLElement) {
+            debugLog('Block confirmation button found.');
+
+            // Avoid attaching multiple listeners
+            if (
+              confirmButton.getAttribute('data-block-confirm-listener') ===
+              'true'
+            ) {
+              debugLog('Confirmation listener already attached.');
+              return;
+            }
+            confirmButton.setAttribute('data-block-confirm-listener', 'true');
+
+            confirmButton.addEventListener('click', () => {
+              debugLog('Block confirmation button clicked, saving note...');
+              void processMuteBlockAction(
+                'Block',
+                username,
+                tweetUrl,
+                tweetText
+              );
+            });
+
+            // Stop observing once we've found and set up the button
+            observer.disconnect();
+            debugLog('Confirmation observer disconnected.');
+            return;
+          }
+        }
+      }
+    });
+
+    // Start observing for the confirmation dialog
+    confirmationObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+
+    // Set a timeout to disconnect the observer if the dialog doesn't appear
+    setTimeout(() => {
+      confirmationObserver.disconnect();
+      debugLog(
+        'Block confirmation observer timed out after 10 seconds, disconnected.'
+      );
+    }, 10000);
+  }
+
+  /**
    * Handles the click event for a mute/block button.
    * Extracts tweet details, processes the action, and logs the event.
+   * For Mute actions, saves the note immediately.
+   * For Block actions, waits for the confirmation dialog before saving.
    * @param buttonElement The button element.
    */
   async function handleMuteBlockButtonClick(buttonElement: HTMLElement) {
@@ -616,12 +692,18 @@
       }
     }
 
-    await processMuteBlockAction(
-      buttonElement.textContent,
-      username,
-      tweetUrl,
-      tweetText
-    );
+    const buttonText = buttonElement.textContent;
+    const isBlockAction = buttonText?.includes('Block');
+
+    if (isBlockAction) {
+      // For Block actions, wait for the confirmation dialog
+      debugLog('Block action detected, waiting for confirmation...');
+      waitForBlockConfirmation(username, tweetUrl, tweetText);
+    } else {
+      // For Mute actions, save immediately
+      debugLog('Mute action detected, saving immediately...');
+      await processMuteBlockAction(buttonText, username, tweetUrl, tweetText);
+    }
   }
 
   /**
